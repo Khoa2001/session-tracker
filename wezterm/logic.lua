@@ -107,4 +107,32 @@ function M.usage_text(lines, age_seconds, now_epoch)
 	return ("%s %s%% │ %s %s%%"):format(five, lines[1], seven, lines[2])
 end
 
+-- Tab title for a pane's state record: "repo:branch", or just "repo" when the
+-- branch is unknown. Anything else (no record, no repo) gives the fallback.
+function M.tab_label(rec, fallback)
+	if type(rec) == "table" then
+		local repo = type(rec.repo) == "string" and rec.repo or ""
+		local branch = type(rec.branch) == "string" and rec.branch or ""
+		if repo ~= "" and branch ~= "" then
+			return repo .. ":" .. branch
+		elseif repo ~= "" then
+			return repo
+		end
+	end
+	return fallback
+end
+
+-- Right side of the tab bar. WezTerm clips it from the left when the window is
+-- narrow, so the counts go last and survive longest.
+function M.right_status(summary, usage)
+	local parts = {}
+	if usage ~= "" then
+		parts[#parts + 1] = usage
+	end
+	if summary ~= "" then
+		parts[#parts + 1] = summary
+	end
+	return table.concat(parts, " │ ")
+end
+
 return M

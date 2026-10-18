@@ -60,10 +60,11 @@ function M.state_of(pane_id)
 	return rec
 end
 
--- FormatItems for the tab title: a colored dot for the worst state among the
--- tab's Claude panes plus a space, or {} when no pane in the tab has a state.
-function M.tab_dot(tab)
-	local ok, items = pcall(function()
+-- What a tab should show: `state` is the worst state among its Claude panes
+-- (nil when none), `title` is "repo:branch" of the focused pane (nil when that
+-- pane has no state record). Never raises.
+function M.tab_view(tab)
+	local ok, view = pcall(function()
 		local states = {}
 		for _, pane in ipairs(wezterm.mux.get_tab(tab.tab_id):panes()) do
 			local rec = M.state_of(pane:pane_id())
@@ -71,16 +72,24 @@ function M.tab_dot(tab)
 				states[#states + 1] = rec.state
 			end
 		end
-		local worst = logic.worst(states)
-		if not worst then
-			return {}
-		end
-		return { { Foreground = { Color = COLORS[worst] } }, { Text = "● " } }
+		local focused = M.state_of(tab.active_pane.pane_id)
+		return { state = logic.worst(states), title = logic.tab_label(focused, nil) }
 	end)
 	if ok then
-		return items
+		return view
 	end
 	return {}
+end
+
+-- FormatItems for the state dot plus a space, or {} when there is no state.
+-- `color` overrides the state color (used where the state color would vanish
+-- into the tab background).
+function M.dot(state, color)
+	local c = color or COLORS[state]
+	if not c then
+		return {}
+	end
+	return { { Foreground = { Color = c } }, { Text = "● " } }
 end
 
 -- Usage cache mtime is looked up with stat at most every 30 seconds.
@@ -120,13 +129,7 @@ local function right_status_text()
 			end
 		end
 	end
-	local parts = {}
-	local summary = logic.summary(logic.counts(states))
-	if summary ~= "" then
-		parts[#parts + 1] = summary
-	end
-	parts[#parts + 1] = usage_text()
-	return table.concat(parts, " │ ")
+	return logic.right_status(logic.summary(logic.counts(states)), usage_text())
 end
 
 local function wipe_state_files()

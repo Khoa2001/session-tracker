@@ -61,5 +61,20 @@ eq(
 	"4h 37m 2% │ 4d 12h 51%"
 )
 
+-- tab_label
+eq("tab_label repo:branch", logic.tab_label({ repo = "web", branch = "dark-mode" }, "fb"), "web:dark-mode")
+eq("tab_label repo only", logic.tab_label({ repo = "web", branch = "" }, "fb"), "web")
+eq("tab_label empty repo falls back", logic.tab_label({ repo = "", branch = "main" }, "fb"), "fb")
+eq("tab_label branch only falls back", logic.tab_label({ branch = "main" }, "fb"), "fb")
+eq("tab_label nil record falls back", logic.tab_label(nil, "fb"), "fb")
+eq("tab_label non-string fields fall back", logic.tab_label({ repo = 5, branch = {} }, "fb"), "fb")
+eq("tab_label nil fallback", logic.tab_label(nil, nil), nil)
+
+-- right_status: usage first, counts last, so a narrow tab bar clips usage first
+eq("right_status both", logic.right_status("1 waiting · 1 idle", "4h 37m 2% │ 4d 12h 51%"), "4h 37m 2% │ 4d 12h 51% │ 1 waiting · 1 idle")
+eq("right_status no counts", logic.right_status("", "usage n/a"), "usage n/a")
+eq("right_status no usage", logic.right_status("2 working", ""), "2 working")
+eq("right_status neither", logic.right_status("", ""), "")
+
 print(("%d passed, %d failed"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)
