@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 292" font-family="Menlo, 'DejaVu Sans Mono', 'JetBrains Mono', monospace" role="img" aria-label="Anatomy of the status line: model, state dot, repo and branch, uncommitted changes, commits ahead of main, and the context bar">
+<rect width="1000" height="292" rx="12" fill="#191724"/>
+<g transform="translate(24,52) scale(1.45)">
+<text x="0" y="0" fill="#f5a623" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">Sonnet 5.5</text><text x="72.0" y="0" fill="#5a5868" font-size="11">│</text><circle cx="88.0" cy="-4" r="4" fill="#98c379"/><text x="98.0" y="0" fill="#facc6e" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">api</text><text x="124.4" y="0" fill="#e68246" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">feat/auth-token</text><text x="229.4" y="0" fill="#5a5868" font-size="11">│</text><text x="243.4" y="0" fill="#78c878" font-size="11" text-anchor="start" xml:space="preserve">+140</text><text x="276.4" y="0" fill="#dc7878" font-size="11" text-anchor="start" xml:space="preserve">-32</text><text x="302.79999999999995" y="0" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">↑3 origin/main</text><text x="401.19999999999993" y="0" fill="#5a5868" font-size="11">│</text><rect x="415.19999999999993" y="-7" width="56" height="3" rx="1.5" fill="#4a4858"/><rect x="415.19999999999993" y="-7" width="19.599999999999998" height="3" rx="1.5" fill="#98c379"/><text x="479.19999999999993" y="0" fill="#98c379" font-size="11" text-anchor="start" xml:space="preserve">34%</text><text x="505.5999999999999" y="0" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">340k</text>
+</g>
+<line x1="71.8" y1="62" x2="71.8" y2="104" stroke="#f5a623" stroke-width="1" opacity="0.7"/>
+<text x="71.8" y="118" fill="#f5a623" font-size="12" text-anchor="middle" xml:space="preserve">model</text>
+<line x1="151.6" y1="62" x2="151.6" y2="136" stroke="#98c379" stroke-width="1" opacity="0.7"/>
+<text x="151.6" y="150" fill="#98c379" font-size="12" text-anchor="middle" xml:space="preserve">state dot</text>
+<line x1="257.0" y1="62" x2="257.0" y2="104" stroke="#facc6e" stroke-width="1" opacity="0.7"/>
+<text x="257.0" y="118" fill="#facc6e" font-size="12" text-anchor="middle" xml:space="preserve">repo and branch</text>
+<line x1="420.0" y1="62" x2="420.0" y2="136" stroke="#78c878" stroke-width="1" opacity="0.7"/>
+<text x="420.0" y="150" fill="#78c878" font-size="12" text-anchor="middle" xml:space="preserve">uncommitted</text>
+<text x="420.0" y="165" fill="#78c878" font-size="12" text-anchor="middle" xml:space="preserve">lines added/removed</text>
+<line x1="525.3" y1="62" x2="525.3" y2="104" stroke="#9ca2af" stroke-width="1" opacity="0.7"/>
+<text x="525.3" y="118" fill="#9ca2af" font-size="12" text-anchor="middle" xml:space="preserve">commits ahead</text>
+<text x="525.3" y="133" fill="#9ca2af" font-size="12" text-anchor="middle" xml:space="preserve">of origin/main</text>
+<line x1="710.7" y1="62" x2="710.7" y2="136" stroke="#9ca2af" stroke-width="1" opacity="0.7"/>
+<text x="710.7" y="150" fill="#9ca2af" font-size="12" text-anchor="middle" xml:space="preserve">context used</text>
+<text x="24" y="226" fill="#e0def4" font-size="12" text-anchor="start" xml:space="preserve">The context bar fills in half-cell steps and changes color as the window fills:</text>
+<g transform="translate(24,250) scale(1.45)"><rect x="0" y="0" width="56" height="4" rx="1.5" fill="#4a4858"/><rect x="0" y="0" width="2.8" height="4" rx="1.5" fill="#98c379"/></g>
+<text x="124" y="262" fill="#98c379" font-size="14" font-weight="bold" text-anchor="start" xml:space="preserve">7%</text>
+<text x="169" y="262" fill="#7f7c8f" font-size="12" text-anchor="start" xml:space="preserve">plenty of room</text>
+<g transform="translate(344,250) scale(1.45)"><rect x="0" y="0" width="56" height="4" rx="1.5" fill="#4a4858"/><rect x="0" y="0" width="33.599999999999994" height="4" rx="1.5" fill="#e8b450"/></g>
+<text x="444" y="262" fill="#e8b450" font-size="14" font-weight="bold" text-anchor="start" xml:space="preserve">62%</text>
+<text x="489" y="262" fill="#7f7c8f" font-size="12" text-anchor="start" xml:space="preserve">filling up</text>
+<g transform="translate(664,250) scale(1.45)"><rect x="0" y="0" width="56" height="4" rx="1.5" fill="#4a4858"/><rect x="0" y="0" width="50.4" height="4" rx="1.5" fill="#eb6f92"/></g>
+<text x="764" y="262" fill="#eb6f92" font-size="14" font-weight="bold" text-anchor="start" xml:space="preserve">91%</text>
+<text x="809" y="262" fill="#7f7c8f" font-size="12" text-anchor="start" xml:space="preserve">nearly full</text>
+</svg>
