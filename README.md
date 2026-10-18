@@ -9,6 +9,13 @@ Shows the state of every Claude Code session running in WezTerm panes.
   among the tab's panes). A tab with a pane that needs you turns rose. The right of the tab bar shows the counts
   plus 5h/7d usage. `~/.wezterm.lua` loads `tracker.lua`.
 
+## Done sound
+
+When a session finishes a turn (`Stop`), the hook plays `/System/Library/Sounds/Ping.aiff` with `afplay`,
+detached so it never delays Claude. `SESSION_TRACKER_SOUND=/path/to/file` picks another sound and
+`SESSION_TRACKER_SOUND=` (empty) turns it off. `SESSION_TRACKER_PLAYER` replaces `afplay`. Set these in the
+`env` block of `~/.claude/settings.json` or in your shell profile.
+
 ## Install / uninstall
 
     bash install.sh      # edits ~/.claude/settings.json (timestamped backup first)
