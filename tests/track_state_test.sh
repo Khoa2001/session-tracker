@@ -1,0 +1,184 @@
+#!/bin/sh
+HERE=$(cd "$(dirname "$0")" && pwd)
+. "$HERE/lib.sh"
+HOOK="$HERE/../hooks/track-state.sh"
+
+# fire EVENT [EXTRA_JSON_FIELDS]
+# Pipes a hook payload into the hook. Uses $SD as state dir, $CWD (default $PWD),
+# pane 7 unless NOPANE is set.
+fire() {
+  ev=$1
+  extra=${2:+,$2}
+  payload=$(printf '{"hook_event_name":"%s","session_id":"s1","cwd":"%s"%s}' "$ev" "${CWD:-$PWD}" "$extra")
+  if [ -n "${NOPANE:-}" ]; then
+    printf '%s' "$payload" | env -u WEZTERM_PANE SESSION_TRACKER_STATE_DIR="$SD" sh "$HOOK"
+  else
+    printf '%s' "$payload" | WEZTERM_PANE=7 SESSION_TRACKER_STATE_DIR="$SD" sh "$HOOK"
+  fi
+}
+
+state() { jq -r .state "$SD/7.json" 2>/dev/null; }
+
+test_maps_working_events() {
+  SD=$(new_tmp)
+  for ev in UserPromptSubmit PreToolUse PostToolUse PostToolUseFailure; do
+    fire "$ev"
+    assert_eq "working: $ev" working "$(state)"
+  done
+}
+
+test_maps_needs_you_events() {
+  SD=$(new_tmp)
+  fire PermissionRequest;  assert_eq "needs-you: PermissionRequest" needs-you "$(state)"
+  fire Stop;               fire StopFailure
+  assert_eq "needs-you: StopFailure" needs-you "$(state)"
+  fire Stop;               fire Notification '"notification_type":"permission_prompt"'
+  assert_eq "needs-you: Notification permission_prompt" needs-you "$(state)"
+}
+
+test_notification_other_type_keeps_state() {
+  SD=$(new_tmp)
+  fire Stop
+  fire Notification '"notification_type":"auth_success"'
+  assert_eq "other notification keeps idle" idle "$(state)"
+}
+
+test_stop_and_sessionstart_are_idle() {
+  SD=$(new_tmp)
+  fire PreToolUse; fire Stop
+  assert_eq "Stop is idle" idle "$(state)"
+  fire PreToolUse; fire SessionStart
+  assert_eq "SessionStart is idle" idle "$(state)"
+}
+
+test_sessionend_removes_file() {
+  SD=$(new_tmp)
+  fire Stop
+  fire SessionEnd
+  assert_file_missing "SessionEnd removes file" "$SD/7.json"
+}
+
+test_subagent_event_ignored_after_stop() {
+  SD=$(new_tmp)
+  fire Stop
+  fire PreToolUse '"agent_id":"a1"'
+  assert_eq "subagent tool event does not revive" idle "$(state)"
+}
+
+test_no_wezterm_pane_is_noop() {
+  SD=$(new_tmp)
+  out=$(NOPANE=1 fire Stop 2>&1); rc=$?
+  assert_eq "exit 0 without pane" 0 "$rc"
+  assert_eq "no output without pane" "" "$out"
+  assert_eq "no files without pane" 0 "$(ls -A "$SD" | wc -l | tr -d ' ')"
+}
+
+test_invalid_json_is_noop() {
+  SD=$(new_tmp)
+  printf 'not json' | WEZTERM_PANE=7 SESSION_TRACKER_STATE_DIR="$SD" sh "$HOOK"
+  assert_eq "exit 0 on bad json" 0 "$?"
+  assert_file_missing "no file on bad json" "$SD/7.json"
+  printf '' | WEZTERM_PANE=7 SESSION_TRACKER_STATE_DIR="$SD" sh "$HOOK"
+  assert_eq "exit 0 on empty stdin" 0 "$?"
+}
+
+test_unwritable_dir_exits_zero() {
+  base=$(new_tmp)
+  : > "$base/afile"
+  SD="$base/afile"
+  fire Stop
+  assert_eq "exit 0 when dir is a file" 0 "$?"
+}
+
+test_non_git_cwd_has_empty_repo_and_branch() {
+  SD=$(new_tmp)
+  CWD=$(new_tmp)
+  fire Stop
+  assert_eq "repo empty" "" "$(jq -r .repo "$SD/7.json")"
+  assert_eq "branch empty" "" "$(jq -r .branch "$SD/7.json")"
+}
+
+test_worktree_reports_main_repo_and_own_branch() {
+  SD=$(new_tmp)
+  root=$(new_tmp)
+  git init -q -b main "$root/api"
+  git -C "$root/api" commit -q --allow-empty -m init
+  git -C "$root/api" worktree add -q -b feat/x "$root/wt"
+  CWD="$root/wt"
+  fire Stop
+  assert_eq "worktree repo is main repo name" api "$(jq -r .repo "$SD/7.json")"
+  assert_eq "worktree branch" feat/x "$(jq -r .branch "$SD/7.json")"
+}
+
+test_sessionstart_prunes_files_older_than_7_days() {
+  SD=$(new_tmp)
+  echo '{}' > "$SD/99.json"
+  touch -t "$(date -v-10d +%Y%m%d%H%M)" "$SD/99.json"
+  echo '{}' > "$SD/98.json"
+  fire SessionStart
+  assert_file_missing "old file pruned" "$SD/99.json"
+  assert_file_exists "fresh other file kept" "$SD/98.json"
+}
+
+test_output_is_always_valid_json() {
+  SD=$(new_tmp)
+  for ev in UserPromptSubmit PermissionRequest Stop SessionStart; do
+    fire "$ev"
+    jq empty "$SD/7.json" 2>/dev/null
+    assert_eq "valid json after $ev" 0 "$?"
+  done
+}
+
+test_state_file_has_expected_fields() {
+  SD=$(new_tmp)
+  fire Stop
+  assert_eq "state file keys" "branch,cwd,repo,session_id,state,ts" "$(jq -r 'keys | join(",")' "$SD/7.json")"
+  assert_eq "ts is a number" number "$(jq -r '.ts | type' "$SD/7.json")"
+}
+
+test_idle_prompt_keeps_idle() {
+  SD=$(new_tmp)
+  fire Stop
+  fire Notification '"notification_type":"idle_prompt"'
+  assert_eq "idle_prompt does not turn a finished pane red" idle "$(state)"
+}
+
+test_subagent_permission_request_needs_you() {
+  SD=$(new_tmp)
+  fire PreToolUse
+  fire PermissionRequest '"agent_id":"a1"'
+  assert_eq "subagent permission prompt is needs-you" needs-you "$(state)"
+}
+
+test_subagent_notification_needs_you() {
+  SD=$(new_tmp)
+  fire PreToolUse
+  fire Notification '"agent_id":"a1","notification_type":"permission_prompt"'
+  assert_eq "subagent notification is needs-you" needs-you "$(state)"
+}
+
+test_question_tools_are_needs_you() {
+  SD=$(new_tmp)
+  for tool in AskUserQuestion ExitPlanMode; do
+    fire PreToolUse "\"tool_name\":\"$tool\""
+    assert_eq "PreToolUse $tool is needs-you" needs-you "$(state)"
+    fire PostToolUse "\"tool_name\":\"$tool\""
+    assert_eq "PostToolUse $tool is working again" working "$(state)"
+  done
+  fire PreToolUse '"tool_name":"Bash"'
+  assert_eq "ordinary tool is working" working "$(state)"
+}
+
+for t in test_maps_working_events test_maps_needs_you_events \
+  test_notification_other_type_keeps_state test_stop_and_sessionstart_are_idle \
+  test_sessionend_removes_file test_subagent_event_ignored_after_stop \
+  test_no_wezterm_pane_is_noop test_invalid_json_is_noop \
+  test_unwritable_dir_exits_zero test_non_git_cwd_has_empty_repo_and_branch \
+  test_worktree_reports_main_repo_and_own_branch \
+  test_sessionstart_prunes_files_older_than_7_days \
+  test_output_is_always_valid_json test_state_file_has_expected_fields \
+  test_idle_prompt_keeps_idle test_subagent_permission_request_needs_you \
+  test_subagent_notification_needs_you test_question_tools_are_needs_you; do
+  ( "$t" )
+done
+finish
