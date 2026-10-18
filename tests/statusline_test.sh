@@ -6,10 +6,13 @@ SL="$HERE/../statusline/statusline-command.sh"
 RED='38;2;235;111;146m●'
 YELLOW='38;2;246;193;119m●'
 GREEN='38;2;152;195;121m●'
+C_GREEN='38;2;152;195;121m'
+C_AMBER='38;2;232;180;80m'
+C_RED='38;2;235;111;146m'
 
 # render DIR  -> raw status line (with ANSI) using $SD and pane 7 unless NOPANE
 render() {
-  json=$(printf '{"model":{"display_name":"Sonnet 5.5","id":"claude-sonnet-5-5"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":41.2,"context_window_size":1000000,"current_usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":40000,"cache_creation_input_tokens":0}}}' "$1")
+  json=$(printf '{"model":{"display_name":"Sonnet 5.5","id":"claude-sonnet-5-5"},"workspace":{"current_dir":"%s"},"context_window":{"used_percentage":%s,"context_window_size":1000000,"current_usage":{"input_tokens":1000,"output_tokens":100,"cache_read_input_tokens":40000,"cache_creation_input_tokens":0}}}' "$1" "${PCT:-41.2}")
   if [ -n "${NOPANE:-}" ]; then
     printf '%s' "$json" | env -u WEZTERM_PANE SESSION_TRACKER_STATE_DIR="${SD:-/nonexistent}" sh "$SL"
   else
@@ -83,7 +86,7 @@ test_non_git_dir_omits_git_part() {
   out=$(plain "$d"); rc=$?
   assert_eq "exit 0" 0 "$rc"
   assert_contains "model" "$out" "Sonnet 5.5"
-  assert_contains "ctx" "$out" "ctx"
+  assert_contains "ctx percent" "$out" "41%"
   assert_not_contains "no ahead" "$out" "↑"
   assert_not_contains "no diff" "$out" "+0"
 }
@@ -123,11 +126,55 @@ test_worktree_shows_main_repo_name() {
   assert_not_contains "not dir name" "$out" "wt2"
 }
 
+test_ctx_bar_has_half_cell_resolution() {
+  d=$(new_tmp)
+  assert_contains "7% shows a half cell" "$(PCT=7 plain "$d")" "╸─────────"
+  assert_contains "45% is 4.5 cells" "$(PCT=45 plain "$d")" "━━━━╸─────"
+  assert_contains "0% is all track" "$(PCT=0 plain "$d")" "──────────"
+  assert_not_contains "0% has no fill" "$(PCT=0 plain "$d")" "━"
+  assert_contains "100% is a full bar" "$(PCT=100 plain "$d")" "━━━━━━━━━━"
+  assert_not_contains "100% has no track" "$(PCT=100 plain "$d")" "─"
+}
+
+test_ctx_bar_clamps_above_100() {
+  d=$(new_tmp)
+  out=$(PCT=130 plain "$d")
+  assert_contains "full bar" "$out" "━━━━━━━━━━"
+  assert_not_contains "no overflow" "$out" "━━━━━━━━━━━"
+}
+
+test_ctx_color_follows_thresholds() {
+  d=$(new_tmp)
+  assert_contains "49 green" "$(PCT=49 render "$d")" "${C_GREEN}━"
+  assert_contains "50 amber" "$(PCT=50 render "$d")" "${C_AMBER}━"
+  assert_contains "79 amber" "$(PCT=79 render "$d")" "${C_AMBER}━"
+  assert_contains "80 red" "$(PCT=80 render "$d")" "${C_RED}━"
+}
+
+test_ctx_shows_used_tokens_without_total() {
+  d=$(new_tmp)
+  out=$(plain "$d")
+  assert_contains "used tokens" "$out" "41k"
+  assert_not_contains "no total" "$out" "/1000k"
+  assert_not_contains "no ctx label" "$out" "ctx"
+}
+
+test_ctx_segment_omitted_without_percentage() {
+  d=$(new_tmp)
+  json='{"model":{"display_name":"Sonnet 5.5","id":"claude-sonnet-5-5"},"workspace":{"current_dir":"'"$d"'"}}'
+  out=$(printf '%s' "$json" | SESSION_TRACKER_STATE_DIR=/nonexistent sh "$SL" | strip_ansi); rc=$?
+  assert_eq "exit 0" 0 "$rc"
+  assert_not_contains "no bar" "$out" "─"
+  assert_not_contains "no percent" "$out" "%"
+}
+
 for t in test_shows_repo_branch_diff_ahead test_dot_follows_state_file \
   test_no_state_file_no_dot test_corrupt_state_file_no_dot_no_error \
   test_no_usage_bars test_non_git_dir_omits_git_part test_clean_tree_omits_diff \
   test_detached_head_no_error test_no_origin_no_main_omits_ahead \
-  test_worktree_shows_main_repo_name; do
+  test_worktree_shows_main_repo_name test_ctx_bar_has_half_cell_resolution \
+  test_ctx_bar_clamps_above_100 test_ctx_color_follows_thresholds \
+  test_ctx_shows_used_tokens_without_total test_ctx_segment_omitted_without_percentage; do
   ( "$t" )
 done
 finish
