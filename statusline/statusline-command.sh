@@ -12,11 +12,11 @@ input=$(cat)
 model=$(echo "$input" | jq -r '.model.display_name // ""' 2>/dev/null)
 model_id=$(echo "$input" | jq -r '.model.id // ""' 2>/dev/null)
 case "$model_id" in
-  *opus*)   model_color="38;2;236;72;153";  dir_color="38;2;251;164;200"; branch_color="38;2;200;110;220"; bar_color="38;2;236;110;160" ;;
-  *sonnet*) model_color="38;2;245;166;35";  dir_color="38;2;250;204;110"; branch_color="38;2;230;130;70";  bar_color="38;2;232;180;80"  ;;
-  *haiku*)  model_color="38;2;45;212;191";  dir_color="38;2;110;231;215"; branch_color="38;2;56;160;220";  bar_color="38;2;45;190;170"  ;;
-  *fable*)  model_color="38;2;167;139;250"; dir_color="38;2;196;181;253"; branch_color="38;2;129;140;248"; bar_color="38;2;139;125;230" ;;
-  *)        model_color="38;2;208;100;100"; dir_color="38;2;76;208;222";  branch_color="38;2;192;103;222"; bar_color="38;2;120;170;220" ;;
+  *opus*)   model_color="38;2;236;72;153";  dir_color="38;2;251;164;200"; branch_color="38;2;200;110;220" ;;
+  *sonnet*) model_color="38;2;245;166;35";  dir_color="38;2;250;204;110"; branch_color="38;2;230;130;70" ;;
+  *haiku*)  model_color="38;2;45;212;191";  dir_color="38;2;110;231;215"; branch_color="38;2;56;160;220" ;;
+  *fable*)  model_color="38;2;167;139;250"; dir_color="38;2;196;181;253"; branch_color="38;2;129;140;248" ;;
+  *)        model_color="38;2;208;100;100"; dir_color="38;2;76;208;222";  branch_color="38;2;192;103;222" ;;
 esac
 
 dir=$(echo "$input" | jq -r '.workspace.current_dir // .cwd // ""' 2>/dev/null)
@@ -42,15 +42,24 @@ if [ -n "$repo" ]; then
   [ -n "$base" ] && ahead=$(git_ahead "$dir" "$base")
 fi
 
-bar() {
-  pct=$(printf "%.0f" "$1" 2>/dev/null)
-  [ -z "$pct" ] && pct=0
-  filled=$(( pct * 10 / 100 ))
-  [ "$filled" -lt 0 ] && filled=0
-  [ "$filled" -gt 10 ] && filled=10
+# Thin bar, 10 cells in half-cell steps: ━ filled, ╸ half step, ─ track.
+# Prints "<filled><track>" with the filled part left uncolored; see ctx segment.
+bar_fill() { # pct -> prints filled part
+  steps=$(( ($1 * 20 + 50) / 100 ))
+  [ "$steps" -lt 0 ] && steps=0
+  [ "$steps" -gt 20 ] && steps=20
+  full=$(( steps / 2 )); half=$(( steps % 2 ))
   out=""; i=0
-  while [ "$i" -lt "$filled" ]; do out="${out}▓"; i=$((i + 1)); done
-  while [ "$i" -lt 10 ]; do out="${out}░"; i=$((i + 1)); done
+  while [ "$i" -lt "$full" ]; do out="${out}━"; i=$((i + 1)); done
+  [ "$half" -eq 1 ] && out="${out}╸"
+  printf "%s" "$out"
+}
+bar_track() { # pct -> prints track part
+  steps=$(( ($1 * 20 + 50) / 100 ))
+  [ "$steps" -lt 0 ] && steps=0
+  [ "$steps" -gt 20 ] && steps=20
+  n=$(( 10 - (steps + 1) / 2 )); out=""; i=0
+  while [ "$i" -lt "$n" ]; do out="${out}─"; i=$((i + 1)); done
   printf "%s" "$out"
 }
 
@@ -86,15 +95,15 @@ if [ "$added" -gt 0 ] || [ "$deleted" -gt 0 ] || { [ -n "$ahead" ] && [ "$ahead"
   fi
 fi
 
-# context
+# context: thin bar, percent in a threshold color, used tokens dimmed
 used=$(echo "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
 if [ -n "$used" ]; then
   sep
-  used_int=$(printf "%.0f" "$used")
-  printf "\033[38;2;156;162;175mctx \033[%sm%s\033[38;2;156;162;175m %s%%\033[0m" "$bar_color" "$(bar "$used")" "$used_int"
+  pct=$(printf "%.0f" "$used")
+  if [ "$pct" -lt 50 ]; then c="38;2;152;195;121"
+  elif [ "$pct" -lt 80 ]; then c="38;2;232;180;80"
+  else c="38;2;235;111;146"; fi
+  printf "\033[%sm%s\033[38;2;74;72;88m%s\033[0m \033[%sm%s%%\033[0m" "$c" "$(bar_fill "$pct")" "$(bar_track "$pct")" "$c" "$pct"
   ctx_used=$(echo "$input" | jq -r '(.context_window.current_usage.cache_read_input_tokens + .context_window.current_usage.cache_creation_input_tokens + .context_window.current_usage.input_tokens + .context_window.current_usage.output_tokens) // empty' 2>/dev/null)
-  ctx_total=$(echo "$input" | jq -r '.context_window.context_window_size // empty' 2>/dev/null)
-  if [ -n "$ctx_used" ] && [ -n "$ctx_total" ]; then
-    printf " \033[2m\033[38;2;156;162;175m(%sk/%sk)\033[0m" "$(( ctx_used / 1000 ))" "$(( ctx_total / 1000 ))"
-  fi
+  [ -n "$ctx_used" ] && printf " \033[2m\033[38;2;156;162;175m%sk\033[0m" "$(( ctx_used / 1000 ))"
 fi
