@@ -1,6 +1,7 @@
-# Session tracker
+# wezterm-claude-kit
 
-Shows the state of every Claude Code session running in WezTerm panes.
+Small native tools for running several Claude Code sessions in WezTerm: per-pane state, tab titles and
+tint, a status line, and a done sound. No daemon, just Claude hooks, a shell status line and WezTerm Lua.
 
 - **Hooks** (`hooks/track-state.sh`) write one file per pane, `~/.claude/state/panes/<WEZTERM_PANE>.json`:
   `{"state","repo","branch","cwd","session_id","ts"}`. States: `working`, `needs-you`, `idle`.
