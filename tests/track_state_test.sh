@@ -3,6 +3,9 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 HOOK="$HERE/../hooks/track-state.sh"
 
+# Never play real sounds from tests; sound tests opt in.
+export SESSION_TRACKER_SOUND=""
+
 # fire EVENT [EXTRA_JSON_FIELDS]
 # Pipes a hook payload into the hook. Uses $SD as state dir, $CWD (default $PWD),
 # pane 7 unless NOPANE is set.
@@ -169,6 +172,77 @@ test_question_tools_are_needs_you() {
   assert_eq "ordinary tool is working" working "$(state)"
 }
 
+# fake_player DIR -> writes DIR/player (logs its args to DIR/played) and prints its path
+fake_player() {
+  printf '#!/bin/sh\necho "$@" >> "%s/played"\n' "$1" > "$1/player"
+  chmod +x "$1/player"
+  echo "$1/player"
+}
+
+# wait_for PATH -> true once PATH exists (up to ~3s)
+wait_for() {
+  i=0
+  while [ "$i" -lt 30 ]; do
+    [ -e "$1" ] && return 0
+    sleep 0.1; i=$((i + 1))
+  done
+  return 1
+}
+
+test_stop_plays_the_configured_sound() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND=/x/done.aiff
+  fire Stop
+  wait_for "$P/played"
+  assert_eq "player got the sound file" "/x/done.aiff" "$(cat "$P/played" 2>/dev/null)"
+}
+
+test_default_sound_is_ping() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P")
+  unset SESSION_TRACKER_SOUND
+  fire Stop
+  wait_for "$P/played"
+  assert_eq "default sound" "/System/Library/Sounds/Ping.aiff" "$(cat "$P/played" 2>/dev/null)"
+}
+
+test_only_stop_plays_a_sound() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND=/x/done.aiff
+  for ev in UserPromptSubmit PreToolUse PostToolUse PermissionRequest StopFailure SessionStart SessionEnd; do
+    fire "$ev"
+  done
+  fire Stop '"agent_id":"a1"'
+  sleep 0.5
+  assert_file_missing "no sound for other events or subagents" "$P/played"
+}
+
+test_empty_sound_disables_it() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND=""
+  fire Stop
+  sleep 0.5
+  assert_file_missing "disabled" "$P/played"
+}
+
+test_missing_player_is_harmless() {
+  SD=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=/nonexistent/player SESSION_TRACKER_SOUND=/x/done.aiff
+  fire Stop
+  assert_eq "exit 0" 0 "$?"
+  assert_eq "state still written" idle "$(state)"
+}
+
+test_slow_player_does_not_block_the_hook() {
+  SD=$(new_tmp); P=$(new_tmp)
+  printf '#!/bin/sh\nsleep 3\n' > "$P/slow"; chmod +x "$P/slow"
+  export SESSION_TRACKER_PLAYER="$P/slow" SESSION_TRACKER_SOUND=/x/done.aiff
+  start=$(date +%s)
+  fire Stop
+  elapsed=$(( $(date +%s) - start ))
+  assert_eq "hook returns fast" 1 "$([ "$elapsed" -lt 2 ] && echo 1 || echo 0)"
+}
+
 for t in test_maps_working_events test_maps_needs_you_events \
   test_notification_other_type_keeps_state test_stop_and_sessionstart_are_idle \
   test_sessionend_removes_file test_subagent_event_ignored_after_stop \
@@ -178,7 +252,10 @@ for t in test_maps_working_events test_maps_needs_you_events \
   test_sessionstart_prunes_files_older_than_7_days \
   test_output_is_always_valid_json test_state_file_has_expected_fields \
   test_idle_prompt_keeps_idle test_subagent_permission_request_needs_you \
-  test_subagent_notification_needs_you test_question_tools_are_needs_you; do
+  test_subagent_notification_needs_you test_question_tools_are_needs_you \
+  test_stop_plays_the_configured_sound test_default_sound_is_ping \
+  test_only_stop_plays_a_sound test_empty_sound_disables_it \
+  test_missing_player_is_harmless test_slow_player_does_not_block_the_hook; do
   ( "$t" )
 done
 finish

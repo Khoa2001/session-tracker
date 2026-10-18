@@ -5,6 +5,16 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/../lib/git-info.sh"
 
+# Chime when a session finishes. Runs detached so a slow player never delays
+# Claude; SESSION_TRACKER_SOUND="" disables it, SESSION_TRACKER_PLAYER swaps afplay.
+play_sound() {
+  sound=${SESSION_TRACKER_SOUND-/System/Library/Sounds/Ping.aiff}
+  [ -n "$sound" ] || return 0
+  player=${SESSION_TRACKER_PLAYER:-afplay}
+  command -v "$player" >/dev/null 2>&1 || return 0
+  ( "$player" "$sound" </dev/null >/dev/null 2>&1 & )
+}
+
 main() {
   [ -n "${WEZTERM_PANE:-}" ] || return 0
   input=$(cat) || return 0
@@ -68,6 +78,8 @@ EOF
   else
     rm -f "$tmp"
   fi
+
+  [ "$event" = Stop ] && play_sound
 }
 
 main
