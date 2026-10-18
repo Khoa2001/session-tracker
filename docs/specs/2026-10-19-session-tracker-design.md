@@ -40,6 +40,7 @@ Why now: the user already has partial plumbing (hooks, a custom status line, a c
 - Usage bars (4h/4d style, as in the current status line) leave the panes and appear once in WezTerm.
 - Counts like "1 waiting, 2 working" appear once in WezTerm.
 - Tab title carries a state dot.
+- Later change (user): the tab title shows `[n] repo:branch` of the focused pane, and a tab with a pane in needs-you gets a rose background with dark bold text, active or not. An explicit tab title still wins.
 - Native only (see non-goals).
 
 ## Proposed design (Claude's calls unless marked as user's)
