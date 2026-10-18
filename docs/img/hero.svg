@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 600" font-family="Menlo, 'DejaVu Sans Mono', 'JetBrains Mono', monospace" role="img" aria-label="WezTerm window with four Claude Code panes, state dots in the tab bar, one tab highlighted rose because a session needs you, and a status line in every pane">
+<defs><clipPath id="win"><rect width="1200" height="600" rx="12"/></clipPath></defs>
+<g clip-path="url(#win)"><rect width="1200" height="600" fill="#191724"/>
+<rect width="1200" height="30" fill="#100f17"/>
+<rect x="0" y="0" width="196" height="30" fill="#c4a7e7"/>
+<circle cx="16" cy="15" r="4.5" fill="#98c379"/>
+<text x="28" y="19" fill="#111111" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">[1] api:feat/auth-token</text>
+<rect x="196" y="0" width="168" height="30" fill="#eb6f92"/>
+<circle cx="212" cy="15" r="4.5" fill="#111111"/>
+<text x="224" y="19" fill="#111111" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">[2] web:dark-mode</text>
+<rect x="364" y="0" width="190" height="30" fill="#312f3d"/>
+<circle cx="380" cy="15" r="4.5" fill="#e8b450"/>
+<text x="392" y="19" fill="#9492a5" font-size="11" text-anchor="start" xml:space="preserve">[3] api:fix/rate-limit</text>
+<rect x="554" y="0" width="164" height="30" fill="#312f3d"/>
+<circle cx="570" cy="15" r="4.5" fill="#98c379"/>
+<text x="582" y="19" fill="#9492a5" font-size="11" text-anchor="start" xml:space="preserve">[4] web:chore/deps</text>
+<text x="1188" y="19" fill="#9492a5" font-size="11" text-anchor="end" xml:space="preserve">3h 42m 22% │ 4d 11h 54% │ 1 waiting · 2 working · 1 idle</text>
+<text x="14" y="56" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">● Added token refresh to src/auth.ts</text>
+<text x="14" y="74" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">  58 tests pass</text>
+<text x="14" y="92" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve"></text>
+<text x="14" y="110" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">> what changed in the migration?</text>
+<line x1="10" y1="233" x2="590" y2="233" stroke="#757477"/>
+<text x="14" y="252" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">❯</text>
+<line x1="10" y1="263" x2="590" y2="263" stroke="#757477"/>
+<text x="14" y="283" fill="#f5a623" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">Sonnet 5.5</text><text x="86.0" y="283" fill="#5a5868" font-size="11">│</text><circle cx="102.0" cy="279" r="4" fill="#98c379"/><text x="112.0" y="283" fill="#facc6e" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">api</text><text x="138.4" y="283" fill="#e68246" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">feat/auth-token</text><text x="243.4" y="283" fill="#5a5868" font-size="11">│</text><text x="257.4" y="283" fill="#78c878" font-size="11" text-anchor="start" xml:space="preserve">+140</text><text x="290.4" y="283" fill="#dc7878" font-size="11" text-anchor="start" xml:space="preserve">-32</text><text x="316.79999999999995" y="283" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">↑3 origin/main</text><text x="415.19999999999993" y="283" fill="#5a5868" font-size="11">│</text><rect x="429.19999999999993" y="276" width="56" height="3" rx="1.5" fill="#4a4858"/><rect x="429.19999999999993" y="276" width="19.599999999999998" height="3" rx="1.5" fill="#98c379"/><text x="493.19999999999993" y="283" fill="#98c379" font-size="11" text-anchor="start" xml:space="preserve">34%</text><text x="519.5999999999999" y="283" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">340k</text>
+<text x="614" y="56" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">● Editing src/limiter.ts</text>
+<text x="614" y="74" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">  Running tests… 41/58</text>
+<text x="614" y="92" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve"></text>
+<text x="614" y="110" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">✻ working</text>
+<line x1="610" y1="233" x2="1190" y2="233" stroke="#757477"/>
+<text x="614" y="252" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">❯</text>
+<line x1="610" y1="263" x2="1190" y2="263" stroke="#757477"/>
+<text x="614" y="283" fill="#f5a623" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">Sonnet 5.5</text><text x="686.0" y="283" fill="#5a5868" font-size="11">│</text><circle cx="702.0" cy="279" r="4" fill="#e8b450"/><text x="712.0" y="283" fill="#facc6e" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">api</text><text x="738.4" y="283" fill="#e68246" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">fix/rate-limit</text><text x="836.8" y="283" fill="#5a5868" font-size="11">│</text><text x="850.8" y="283" fill="#78c878" font-size="11" text-anchor="start" xml:space="preserve">+12</text><text x="877.1999999999999" y="283" fill="#dc7878" font-size="11" text-anchor="start" xml:space="preserve">-4</text><text x="896.9999999999999" y="283" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">↑1 origin/main</text><text x="995.3999999999999" y="283" fill="#5a5868" font-size="11">│</text><rect x="1009.3999999999999" y="276" width="56" height="3" rx="1.5" fill="#4a4858"/><rect x="1009.3999999999999" y="276" width="39.199999999999996" height="3" rx="1.5" fill="#e8b450"/><text x="1073.3999999999999" y="283" fill="#e8b450" font-size="11" text-anchor="start" xml:space="preserve">71%</text><text x="1099.8" y="283" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">710k</text>
+<text x="14" y="341" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">● Reading src/export/csv.ts</text>
+<text x="14" y="359" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">  Writing the header row</text>
+<text x="14" y="377" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve"></text>
+<text x="14" y="395" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">✻ working</text>
+<line x1="10" y1="518" x2="590" y2="518" stroke="#757477"/>
+<text x="14" y="537" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">❯</text>
+<line x1="10" y1="548" x2="590" y2="548" stroke="#757477"/>
+<text x="14" y="568" fill="#f5a623" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">Sonnet 5.5</text><text x="86.0" y="568" fill="#5a5868" font-size="11">│</text><circle cx="102.0" cy="564" r="4" fill="#e8b450"/><text x="112.0" y="568" fill="#facc6e" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">api</text><text x="138.4" y="568" fill="#e68246" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">feat/export-csv</text><text x="243.4" y="568" fill="#5a5868" font-size="11">│</text><text x="257.4" y="568" fill="#78c878" font-size="11" text-anchor="start" xml:space="preserve">+88</text><text x="283.79999999999995" y="568" fill="#dc7878" font-size="11" text-anchor="start" xml:space="preserve">-0</text><text x="303.59999999999997" y="568" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">↑2 origin/main</text><text x="401.99999999999994" y="568" fill="#5a5868" font-size="11">│</text><rect x="415.99999999999994" y="561" width="56" height="3" rx="1.5" fill="#4a4858"/><rect x="415.99999999999994" y="561" width="11.2" height="3" rx="1.5" fill="#98c379"/><text x="479.99999999999994" y="568" fill="#98c379" font-size="11" text-anchor="start" xml:space="preserve">22%</text><text x="506.3999999999999" y="568" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">220k</text>
+<text x="614" y="341" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">● Fixed 19 lint errors</text>
+<text x="614" y="359" fill="#7f7c8f" font-size="11" text-anchor="start" xml:space="preserve">  Done in 2m 10s</text>
+<text x="614" y="377" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve"></text>
+<text x="614" y="395" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">> run the suite once more</text>
+<line x1="610" y1="518" x2="1190" y2="518" stroke="#757477"/>
+<text x="614" y="537" fill="#e0def4" font-size="11" text-anchor="start" xml:space="preserve">❯</text>
+<line x1="610" y1="548" x2="1190" y2="548" stroke="#757477"/>
+<text x="614" y="568" fill="#f5a623" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">Sonnet 5.5</text><text x="686.0" y="568" fill="#5a5868" font-size="11">│</text><circle cx="702.0" cy="564" r="4" fill="#98c379"/><text x="712.0" y="568" fill="#facc6e" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">api</text><text x="738.4" y="568" fill="#e68246" font-size="11" font-weight="bold" text-anchor="start" xml:space="preserve">chore/lint</text><text x="810.4" y="568" fill="#5a5868" font-size="11">│</text><text x="824.4" y="568" fill="#78c878" font-size="11" text-anchor="start" xml:space="preserve">+23</text><text x="850.8" y="568" fill="#dc7878" font-size="11" text-anchor="start" xml:space="preserve">-19</text><text x="877.1999999999999" y="568" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">↑1 origin/main</text><text x="975.5999999999999" y="568" fill="#5a5868" font-size="11">│</text><rect x="989.5999999999999" y="561" width="56" height="3" rx="1.5" fill="#4a4858"/><rect x="989.5999999999999" y="561" width="50.4" height="3" rx="1.5" fill="#eb6f92"/><text x="1053.6" y="568" fill="#eb6f92" font-size="11" text-anchor="start" xml:space="preserve">91%</text><text x="1080.0" y="568" fill="#9ca2af" font-size="11" text-anchor="start" xml:space="preserve">910k</text>
+<line x1="600" y1="30" x2="600" y2="600" stroke="#757477"/>
+<line x1="0" y1="315" x2="1200" y2="315" stroke="#757477"/>
+</g></svg>
