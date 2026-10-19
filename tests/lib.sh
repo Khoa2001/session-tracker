@@ -1,5 +1,5 @@
 #!/bin/sh
-# Tiny assertion helpers for the session-tracker shell tests. Source this file.
+# Tiny assertion helpers for the wezterm-claude-kit shell tests. Source this file.
 # Each assert prints one PASS or FAIL line and records failures in $RESULTS,
 # so tests can run in subshells and still be counted by `finish`.
 

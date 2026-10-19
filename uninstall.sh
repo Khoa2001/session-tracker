@@ -1,5 +1,5 @@
 #!/bin/sh
-# Removes the session-tracker hooks from <home>/.claude/settings.json and
+# Removes the wezterm-claude-kit hooks from <home>/.claude/settings.json and
 # restores the original status line command. Usage: uninstall.sh [--home DIR]
 set -eu
 
@@ -21,7 +21,7 @@ tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
 jq '
-  def ours: any(.hooks[]?; (.command // "") | contains("session-tracker/hooks/track-state.sh"));
+  def ours: any(.hooks[]?; (.command // "") | contains("wezterm-claude-kit/hooks/track-state.sh"));
   (if .hooks then
      .hooks |= with_entries(
        if (.value | type) == "array" and any(.value[]?; ours)
@@ -29,11 +29,11 @@ jq '
        else . end
        | select(.value != []))
    else . end)
-  | if (.statusLine.command // "" | contains("session-tracker/statusline"))
+  | if (.statusLine.command // "" | contains("wezterm-claude-kit/statusline"))
     then .statusLine.command = "bash ~/.claude/statusline-command.sh" else . end
 ' "$settings" > "$tmp"
 
 jq empty "$tmp"
 mv "$tmp" "$settings"
 trap - EXIT
-echo "removed session-tracker entries from $settings"
+echo "removed wezterm-claude-kit entries from $settings"
