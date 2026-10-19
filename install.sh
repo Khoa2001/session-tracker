@@ -23,6 +23,8 @@ echo "backup: $backup"
 # making every Claude hook fail or blanking the status line.
 hook_cmd="if [ -f '$HERE/hooks/track-state.sh' ]; then bash '$HERE/hooks/track-state.sh'; fi"
 sl_cmd="if [ -f '$HERE/statusline/statusline-command.sh' ]; then bash '$HERE/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
+# refreshInterval re-runs the status line while idle, so pane numbers follow
+# a split or close within seconds.
 tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
@@ -36,6 +38,7 @@ jq --arg hook "$hook_cmd" --arg sl "$sl_cmd" '
       | if any($cur[]?; any(.hooks[]?; .command == $hook)) then $cur else $cur + [ours] end))
   | .statusLine.type = "command"
   | .statusLine.command = $sl
+  | .statusLine.refreshInterval = 3
 ' "$settings" > "$tmp"
 
 jq empty "$tmp"

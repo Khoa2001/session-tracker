@@ -30,7 +30,7 @@ jq '
        | select(.value != []))
    else . end)
   | if (.statusLine.command // "" | contains("wezterm-claude-kit/statusline"))
-    then .statusLine.command = "bash ~/.claude/statusline-command.sh" else . end
+    then .statusLine.command = "bash ~/.claude/statusline-command.sh" | del(.statusLine.refreshInterval) else . end
 ' "$settings" > "$tmp"
 
 jq empty "$tmp"

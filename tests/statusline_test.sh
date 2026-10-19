@@ -168,7 +168,23 @@ test_ctx_segment_omitted_without_percentage() {
   assert_not_contains "no percent" "$out" "%"
 }
 
-for t in test_shows_repo_branch_diff_ahead test_dot_follows_state_file \
+test_pane_number_badge() {
+  sd=$(new_tmp); printf '3\n' > "$sd/7.pos"
+  out=$(SD="$sd" plain /nonexistent)
+  assert_contains "badge before model" "$out" " 3  Sonnet 5.5"
+  raw=$(SD="$sd" render /nonexistent)
+  assert_contains "pane 3 hue on repo" "$raw" '38;2;198;120;221m'
+  printf '1\n' > "$sd/7.pos"
+  raw=$(SD="$sd" render /nonexistent)
+  assert_contains "pane 1 hue differs" "$raw" '38;2;224;108;117m'
+  out=$(SD="$sd" NOPANE=1 plain /nonexistent)
+  assert_not_contains "no badge without pane" "$out" " 1 "
+  printf 'x\n' > "$sd/7.pos"
+  out=$(SD="$sd" plain /nonexistent)
+  assert_not_contains "junk number ignored" "$out" " x "
+}
+
+for t in test_pane_number_badge test_shows_repo_branch_diff_ahead test_dot_follows_state_file \
   test_no_state_file_no_dot test_corrupt_state_file_no_dot_no_error \
   test_no_usage_bars test_non_git_dir_omits_git_part test_clean_tree_omits_diff \
   test_detached_head_no_error test_no_origin_no_main_omits_ahead \

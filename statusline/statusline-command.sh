@@ -67,6 +67,24 @@ SEP="\033[90m │ \033[0m"
 first=1
 sep() { if [ "$first" -eq 1 ]; then first=0; else printf "%b" "$SEP"; fi; }
 
+# Pane number badge, written by wezterm/tracker.lua while the tab has several
+# panes. The same hue also colors repo and branch, so a pane reads as one color.
+if [ -n "${WEZTERM_PANE:-}" ] && [ -f "$state_dir/$WEZTERM_PANE.pos" ]; then
+  read -r pane_no < "$state_dir/$WEZTERM_PANE.pos" 2>/dev/null
+  case $pane_no in
+    ''|*[!0-9]*) ;;
+    *)
+      case $(( (pane_no - 1) % 6 )) in
+        0) hue="224;108;117" ;; 1) hue="229;192;123" ;; 2) hue="198;120;221" ;;
+        3) hue="86;182;194" ;; 4) hue="152;195;121" ;; *) hue="97;175;239" ;;
+      esac
+      badge_fg="46;52;64"
+      dir_color="38;2;$hue"; branch_color="38;2;$hue"
+      printf "\033[48;2;%s;38;2;%s;1m %s \033[0m " "$hue" "$badge_fg" "$pane_no"
+      ;;
+  esac
+fi
+
 # model
 sep
 printf "\033[%sm\033[1m%s\033[22m\033[0m" "$model_color" "$model"
@@ -78,7 +96,7 @@ if [ -n "$name" ]; then
   sep
   [ -n "$dot" ] && printf "\033[%sm●\033[0m " "$dot"
   printf "\033[1m\033[%sm%s\033[22m\033[0m" "$dir_color" "$name"
-  [ -n "$branch" ] && printf " \033[1m\033[%sm%s\033[22m\033[0m" "$branch_color" "$branch"
+  [ -n "$branch" ] && printf " \033[%sm%s\033[0m" "$branch_color" "$branch"
 fi
 
 # diff + ahead
