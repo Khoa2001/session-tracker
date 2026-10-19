@@ -63,6 +63,7 @@ test_install_sets_statusline() {
   h=$(seed_home)
   sh "$INSTALL" --home "$h" >/dev/null
   assert_eq "statusLine command" "$SL_CMD" "$(jq -r .statusLine.command "$(settings "$h")")"
+  assert_eq "statusLine refreshInterval" 3 "$(jq -r .statusLine.refreshInterval "$(settings "$h")")"
   assert_eq "statusLine type" command "$(jq -r .statusLine.type "$(settings "$h")")"
 }
 
