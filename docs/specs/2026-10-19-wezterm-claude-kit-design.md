@@ -15,7 +15,7 @@ Why now: the user already has partial plumbing (hooks, a custom status line, a c
 
 ## What exists today (verified by reading the files)
 
-- `~/.wezterm.lua`: rose-pine, JetBrains Mono 15, tab bar at top, non-fancy. A `format-tab-title` handler renders `[n] <pane title>`. No status handler. Tab bar hidden when only one tab.
+- `~/.wezterm.lua`: Nord (base16), JetBrains Mono 14, tab bar at top, non-fancy. A `format-tab-title` handler renders `[n] <pane title>`. No status handler. Tab bar hidden when only one tab.
 - `~/.claude/statusline-command.sh`: one line with model, folder, branch, staged/unstaged counts, 5h and 7d usage bars, context bar. Usage comes from `/tmp/.claude_usage_cache`, written by `~/.claude/fetch-usage.sh` (called from `PreToolUse` and `Stop` hooks). The usage bars are identical in every pane.
 - `~/.claude/settings.json` hooks already registered: `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Stop`, `StopFailure`, `UserPromptSubmit`, `SessionStart`. Settings also have `inputNeededNotifEnabled` and `agentPushNotifEnabled` on.
 - Leftovers: hooks calling `~/.claude/hooks/herdr-agent-state.sh` and `~/.orca/agent-hooks/claude-hook.sh`. Neither tool is installed, so both are no-ops today.
@@ -98,6 +98,6 @@ More of my calls:
 
 1. State mapping from hook events to three states (above).
 2. Counts and usage go in the tab bar's right side, not a bottom bar.
-3. Design document location: first `docs/superpowers/specs/` at the project root, later moved with the plan into `tools/session-tracker/docs/` at the user's request (the folder is not a git repo).
+3. Design document location: first `docs/superpowers/specs/` at the project root, later moved with the plan into `tools/wezterm-claude-kit/docs/` at the user's request (the folder is not a git repo).
 4. Leftover herdr/Orca hooks are left alone.
 5. Only three states (working, needs-you, idle/done). The earlier mockups also showed "mergeable"; it is dropped for now.

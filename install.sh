@@ -1,5 +1,5 @@
 #!/bin/sh
-# Registers the session-tracker hooks and status line in <home>/.claude/settings.json.
+# Registers the wezterm-claude-kit hooks and status line in <home>/.claude/settings.json.
 # Usage: install.sh [--home DIR]
 # Takes a timestamped backup first, is idempotent, and keeps existing hooks.
 set -eu
