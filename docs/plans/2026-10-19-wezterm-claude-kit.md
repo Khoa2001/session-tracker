@@ -8,7 +8,7 @@
 
 **Tech Stack:** POSIX sh, `jq`, `git`, WezTerm Lua (20240203 build), LuaJIT for pure-logic tests (`/opt/homebrew/bin/luajit`; no `lua`, `bats` or `shellcheck` installed).
 
-**Spec:** `tools/session-tracker/docs/specs/2026-10-19-session-tracker-design.md`
+**Spec:** `tools/wezterm-claude-kit/docs/specs/2026-10-19-wezterm-claude-kit-design.md`
 
 ## Global Constraints
 
@@ -23,7 +23,7 @@
 - Do not touch `~/Projects/my_proj/my-grimoire/` (`~/.claude/skills` symlinks into it).
 - Live files `~/.claude/settings.json` and `~/.wezterm.lua` are edited directly (user decision), each after a timestamped backup.
 - Leave the herdr and Orca hook entries untouched.
-- All code lives under `tools/session-tracker/` in this project.
+- All code lives under `tools/wezterm-claude-kit/` in this project.
 
 ## Review Focus
 
@@ -40,11 +40,11 @@ Each line has its test in the owning task.
 ### Task 1: State hook and shared git helpers
 
 **Files:**
-- Create: `tools/session-tracker/lib/git-info.sh`
-- Create: `tools/session-tracker/hooks/track-state.sh`
-- Create: `tools/session-tracker/tests/lib.sh` (assert helpers: `assert_eq name expected actual`, `assert_contains`, `assert_not_contains`, `new_tmp` returning a fresh temp dir cleaned on exit)
-- Create: `tools/session-tracker/tests/run.sh` (runs every `tests/*_test.sh` and `luajit tests/*_test.lua`, exits non-zero on any failure)
-- Test: `tools/session-tracker/tests/track_state_test.sh`
+- Create: `tools/wezterm-claude-kit/lib/git-info.sh`
+- Create: `tools/wezterm-claude-kit/hooks/track-state.sh`
+- Create: `tools/wezterm-claude-kit/tests/lib.sh` (assert helpers: `assert_eq name expected actual`, `assert_contains`, `assert_not_contains`, `new_tmp` returning a fresh temp dir cleaned on exit)
+- Create: `tools/wezterm-claude-kit/tests/run.sh` (runs every `tests/*_test.sh` and `luajit tests/*_test.lua`, exits non-zero on any failure)
+- Test: `tools/wezterm-claude-kit/tests/track_state_test.sh`
 
 **Interfaces:**
 - Produces, `lib/git-info.sh` (POSIX sh, meant to be sourced):
@@ -73,7 +73,7 @@ Each test pipes a JSON fixture into the script with `WEZTERM_PANE=7` and a temp 
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: FAIL (script does not exist).
 
 - [ ] **Step 3: Implement `lib/git-info.sh` and `hooks/track-state.sh`**
@@ -82,7 +82,7 @@ Use one `jq` call to extract all hook fields. Build the state file with `jq -n -
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: all `track_state_test.sh` tests PASS.
 
 ---
@@ -90,9 +90,9 @@ Expected: all `track_state_test.sh` tests PASS.
 ### Task 2: Status line (option B)
 
 **Files:**
-- Create: `tools/session-tracker/statusline/statusline-command.sh`
-- Modify: `tools/session-tracker/lib/git-info.sh` (add the functions below)
-- Test: `tools/session-tracker/tests/statusline_test.sh`
+- Create: `tools/wezterm-claude-kit/statusline/statusline-command.sh`
+- Modify: `tools/wezterm-claude-kit/lib/git-info.sh` (add the functions below)
+- Test: `tools/wezterm-claude-kit/tests/statusline_test.sh`
 
 **Interfaces:**
 - Consumes: `git_repo_name`, `git_branch` from Task 1; state file format from Task 1.
@@ -118,7 +118,7 @@ Strip ANSI with `sed` before asserting. Fixtures: a temp `origin` repo with `mai
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: statusline tests FAIL.
 
 - [ ] **Step 3: Implement the new git helpers and the script**
@@ -127,12 +127,12 @@ Start from `~/.claude/statusline-command.sh` (current behavior listed in the spe
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: all tests PASS.
 
 - [ ] **Step 5: Visual check against the approved mockup**
 
-Run: `echo '<fixture status json>' | WEZTERM_PANE=<live pane> bash tools/session-tracker/statusline/statusline-command.sh` in a live WezTerm pane inside a real worktree.
+Run: `echo '<fixture status json>' | WEZTERM_PANE=<live pane> bash tools/wezterm-claude-kit/statusline/statusline-command.sh` in a live WezTerm pane inside a real worktree.
 Expected: one line matching mockup B: dot, repo, branch, `+A -D`, `↑N base`, ctx bar. No usage bars.
 
 ---
@@ -140,8 +140,8 @@ Expected: one line matching mockup B: dot, repo, branch, `+A -D`, `↑N base`, c
 ### Task 3: Pure Lua logic
 
 **Files:**
-- Create: `tools/session-tracker/wezterm/logic.lua` (no `require("wezterm")`, so it runs under LuaJIT)
-- Test: `tools/session-tracker/tests/logic_test.lua`
+- Create: `tools/wezterm-claude-kit/wezterm/logic.lua` (no `require("wezterm")`, so it runs under LuaJIT)
+- Test: `tools/wezterm-claude-kit/tests/logic_test.lua`
 
 **Interfaces:**
 - Produces, `logic.lua` returns a table `M`:
@@ -163,7 +163,7 @@ Plain `assert` with a small `eq(name, got, want)` helper that prints failures an
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `luajit tools/session-tracker/tests/logic_test.lua`
+Run: `luajit tools/wezterm-claude-kit/tests/logic_test.lua`
 Expected: FAIL (module missing).
 
 - [ ] **Step 3: Implement `logic.lua`**
@@ -172,7 +172,7 @@ Parse ISO timestamps with a pattern and compute epoch with a days-from-civil for
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: all shell and Lua tests PASS.
 
 ---
@@ -180,7 +180,7 @@ Expected: all shell and Lua tests PASS.
 ### Task 4: WezTerm glue and live `~/.wezterm.lua`
 
 **Files:**
-- Create: `tools/session-tracker/wezterm/tracker.lua`
+- Create: `tools/wezterm-claude-kit/wezterm/tracker.lua`
 - Modify (live, after backup): `/Users/khoamai/.wezterm.lua`
 - Backup first: `cp ~/.wezterm.lua ~/.wezterm.lua.bak-$(date +%Y%m%d-%H%M%S)`
 
@@ -190,7 +190,7 @@ Expected: all shell and Lua tests PASS.
   - `M.read_states(dir: string, live_pane_ids: table<number,true>) -> table<number, {state:string, repo:string, branch:string}>`: reads `<id>.json` for live ids only, using `wezterm.read_dir`, `io.open` and `wezterm.json_parse`, every call under `pcall`. Returns `{}` on any error and skips a corrupt file without raising.
   - `M.tab_dot(tab) -> FormatItem[]`: the dot (colored by `logic.worst` over that tab's Claude panes) followed by a space, or `{}` when no pane in the tab has a state file. Pure of side effects; never raises.
   - `M.setup(config)`: registers `update-right-status` (counts via `logic.summary` plus `logic.usage_text` from `$SESSION_TRACKER_USAGE_CACHE` or `/tmp/.claude_usage_cache`, with file age from its mtime) and a `gui-startup` handler that deletes all `*.json` in the state dir.
-- State dir: `$SESSION_TRACKER_STATE_DIR` or `$HOME/.claude/state/panes`. Dot colors are the implementer's call within red/yellow/green and must read well on the rose-pine palette already in `~/.wezterm.lua`.
+- State dir: `$SESSION_TRACKER_STATE_DIR` or `$HOME/.claude/state/panes`. Dot colors are the implementer's call within red/yellow/green and must read well on the Nord (base16) palette already in `~/.wezterm.lua`.
 
 - [ ] **Step 1: Spike three WezTerm API facts before writing code (20240203 build)**
 
@@ -203,7 +203,7 @@ Cache `read_states` results for about one second so a burst of tab redraws does 
 
 - [ ] **Step 3: Edit `~/.wezterm.lua` directly (after the backup)**
 
-Make three edits: add the module directory to `package.path` as an absolute path to `.../my_proj/tools/session-tracker/wezterm/?.lua` and `require("tracker")`; in the existing `format-tab-title` handler, prepend `tracker.tab_dot(tab)` items before the `[n] title` text; call `tracker.setup(config)` before `return config`. Keep everything else byte-identical.
+Make three edits: add the module directory to `package.path` as an absolute path to `.../my_proj/tools/wezterm-claude-kit/wezterm/?.lua` and `require("tracker")`; in the existing `format-tab-title` handler, prepend `tracker.tab_dot(tab)` items before the `[n] title` text; call `tracker.setup(config)` before `return config`. Keep everything else byte-identical.
 
 - [ ] **Step 4: Verify the config loads**
 
@@ -220,16 +220,16 @@ Expected: the tab dot shows the worst state, the right side of the tab bar shows
 ### Task 5: Installer, live rollout and end-to-end check
 
 **Files:**
-- Create: `tools/session-tracker/install.sh`
-- Create: `tools/session-tracker/uninstall.sh`
-- Create: `tools/session-tracker/README.md` (what it does, the state file format, install and uninstall, how to run tests; short)
-- Test: `tools/session-tracker/tests/install_test.sh`
+- Create: `tools/wezterm-claude-kit/install.sh`
+- Create: `tools/wezterm-claude-kit/uninstall.sh`
+- Create: `tools/wezterm-claude-kit/README.md` (what it does, the state file format, install and uninstall, how to run tests; short)
+- Test: `tools/wezterm-claude-kit/tests/install_test.sh`
 - Modify (live, via the script, after its own backup): `/Users/khoamai/.claude/settings.json`
 
 **Interfaces:**
 - Consumes: `hooks/track-state.sh` (Task 1), `statusline/statusline-command.sh` (Task 2).
 - Produces, `install.sh [--home DIR]` (default `$HOME`): copies `settings.json` to `settings.json.bak-YYYYmmdd-HHMMSS`, then with `jq`: for each of `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SessionStart`, `SessionEnd` appends `{"matcher":"*","hooks":[{"type":"command","command":"bash <abs path>/hooks/track-state.sh","timeout":5}]}` unless an entry with that exact command already exists; sets `statusLine.command` to `bash <abs path>/statusline/statusline-command.sh`. Existing hooks (including herdr and Orca) are preserved and keep their order. Idempotent. Creates `~/.claude/state/panes`.
-- Produces, `uninstall.sh [--home DIR]`: backs up, removes entries whose command contains `session-tracker/hooks/track-state.sh`, restores `statusLine.command` to `bash ~/.claude/statusline-command.sh`.
+- Produces, `uninstall.sh [--home DIR]`: backs up, removes entries whose command contains `wezterm-claude-kit/hooks/track-state.sh`, restores `statusLine.command` to `bash ~/.claude/statusline-command.sh`.
 - The `~/.wezterm.lua` change is Task 4's manual edit, not scripted.
 
 - [ ] **Step 1: Write failing tests in `tests/install_test.sh`**
@@ -246,7 +246,7 @@ Use a temp `--home` seeded with a copy of the real `settings.json` structure (he
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: install tests FAIL.
 
 - [ ] **Step 3: Implement `install.sh` and `uninstall.sh`**
@@ -255,12 +255,12 @@ Write the merged JSON to a temp file, validate with `jq empty`, then `mv` over t
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `sh tools/session-tracker/tests/run.sh`
+Run: `sh tools/wezterm-claude-kit/tests/run.sh`
 Expected: all shell and Lua tests PASS.
 
 - [ ] **Step 5: Install for real**
 
-Run: `bash tools/session-tracker/install.sh`
+Run: `bash tools/wezterm-claude-kit/install.sh`
 Expected: backup file printed, `jq empty ~/.claude/settings.json` passes, `jq '.hooks.Stop | length' ~/.claude/settings.json` shows our entry added and the originals kept. New Claude sessions pick up hooks; existing sessions need a restart.
 
 - [ ] **Step 6: End-to-end in the real window**
