@@ -191,6 +191,9 @@ end
 
 function M.setup(config)
 	config.status_update_interval = 1000
+	-- The right status carries the session counts, so the bar must stay visible
+	-- with a single tab.
+	config.hide_tab_bar_if_only_one_tab = false
 
 	wezterm.on("update-right-status", function(window, _)
 		pcall(write_positions)
