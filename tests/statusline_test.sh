@@ -43,8 +43,8 @@ test_shows_repo_branch_diff_ahead() {
   assert_contains "branch" "$out" "feat/auth-token"
   assert_contains "diff" "$out" "+3 -1"
   assert_contains "ahead" "$out" "↑2 origin/main"
-  assert_contains "model" "$out" "Sonnet 5.5"
-  assert_contains "ctx" "$out" "41%"
+  assert_contains "model glyph" "$out" "■"
+  assert_contains "ctx" "$out" "ctx 41%"
 }
 
 test_dot_follows_state_file() {
@@ -85,8 +85,8 @@ test_non_git_dir_omits_git_part() {
   d=$(new_tmp)
   out=$(plain "$d"); rc=$?
   assert_eq "exit 0" 0 "$rc"
-  assert_contains "model" "$out" "Sonnet 5.5"
-  assert_contains "ctx percent" "$out" "41%"
+  assert_contains "model glyph" "$out" "■"
+  assert_contains "ctx percent" "$out" "ctx 41%"
   assert_not_contains "no ahead" "$out" "↑"
   assert_not_contains "no diff" "$out" "+0"
 }
@@ -126,37 +126,37 @@ test_worktree_shows_main_repo_name() {
   assert_not_contains "not dir name" "$out" "wt2"
 }
 
-test_ctx_bar_has_half_cell_resolution() {
+test_model_glyph_follows_model() {
   d=$(new_tmp)
-  assert_contains "7% shows a half cell" "$(PCT=7 plain "$d")" "╸─────────"
-  assert_contains "45% is 4.5 cells" "$(PCT=45 plain "$d")" "━━━━╸─────"
-  assert_contains "0% is all track" "$(PCT=0 plain "$d")" "──────────"
-  assert_not_contains "0% has no fill" "$(PCT=0 plain "$d")" "━"
-  assert_contains "100% is a full bar" "$(PCT=100 plain "$d")" "━━━━━━━━━━"
-  assert_not_contains "100% has no track" "$(PCT=100 plain "$d")" "─"
+  for pair in "opus:◆:38;2;236;72;153m" "sonnet:■:38;2;245;166;35m" "haiku:▲:38;2;45;212;191m" "fable:✦:38;2;167;139;250m"; do
+    m=${pair%%:*}; rest=${pair#*:}; g=${rest%%:*}; code=${rest#*:}
+    json=$(printf '{"model":{"id":"claude-%s-5"},"workspace":{"current_dir":"%s"}}' "$m" "$d")
+    raw=$(printf '%s' "$json" | SESSION_TRACKER_STATE_DIR=/nonexistent sh "$SL")
+    assert_contains "$m glyph" "$raw" "$code$g"
+  done
+  assert_not_contains "no model name" "$(plain "$d")" "Sonnet"
 }
 
-test_ctx_bar_clamps_above_100() {
+test_ctx_has_no_bar() {
   d=$(new_tmp)
-  out=$(PCT=130 plain "$d")
-  assert_contains "full bar" "$out" "━━━━━━━━━━"
-  assert_not_contains "no overflow" "$out" "━━━━━━━━━━━"
+  out=$(PCT=45 plain "$d")
+  assert_not_contains "no fill" "$out" "━"
+  assert_not_contains "no track" "$out" "─"
 }
 
 test_ctx_color_follows_thresholds() {
   d=$(new_tmp)
-  assert_contains "49 green" "$(PCT=49 render "$d")" "${C_GREEN}━"
-  assert_contains "50 amber" "$(PCT=50 render "$d")" "${C_AMBER}━"
-  assert_contains "79 amber" "$(PCT=79 render "$d")" "${C_AMBER}━"
-  assert_contains "80 red" "$(PCT=80 render "$d")" "${C_RED}━"
+  assert_contains "49 green" "$(PCT=49 render "$d")" "${C_GREEN}"
+  assert_contains "50 amber" "$(PCT=50 render "$d")" "${C_AMBER}"
+  assert_contains "79 amber" "$(PCT=79 render "$d")" "${C_AMBER}"
+  assert_contains "80 red" "$(PCT=80 render "$d")" "${C_RED}"
 }
 
 test_ctx_shows_used_tokens_without_total() {
   d=$(new_tmp)
   out=$(plain "$d")
-  assert_contains "used tokens" "$out" "41k"
+  assert_contains "used tokens" "$out" "ctx 41% 41k"
   assert_not_contains "no total" "$out" "/1000k"
-  assert_not_contains "no ctx label" "$out" "ctx"
 }
 
 test_ctx_segment_omitted_without_percentage() {
@@ -171,7 +171,7 @@ test_ctx_segment_omitted_without_percentage() {
 test_pane_number_badge() {
   sd=$(new_tmp); printf '3\n' > "$sd/7.pos"
   out=$(SD="$sd" plain /nonexistent)
-  assert_contains "badge before model" "$out" " 3  Sonnet 5.5"
+  assert_contains "badge before model glyph" "$out" " 3  ■"
   raw=$(SD="$sd" render /nonexistent)
   assert_contains "pane 3 hue on repo" "$raw" '38;2;198;120;221m'
   printf '1\n' > "$sd/7.pos"
@@ -188,8 +188,8 @@ for t in test_pane_number_badge test_shows_repo_branch_diff_ahead test_dot_follo
   test_no_state_file_no_dot test_corrupt_state_file_no_dot_no_error \
   test_no_usage_bars test_non_git_dir_omits_git_part test_clean_tree_omits_diff \
   test_detached_head_no_error test_no_origin_no_main_omits_ahead \
-  test_worktree_shows_main_repo_name test_ctx_bar_has_half_cell_resolution \
-  test_ctx_bar_clamps_above_100 test_ctx_color_follows_thresholds \
+  test_worktree_shows_main_repo_name test_model_glyph_follows_model \
+  test_ctx_has_no_bar test_ctx_color_follows_thresholds \
   test_ctx_shows_used_tokens_without_total test_ctx_segment_omitted_without_percentage; do
   ( "$t" )
 done
