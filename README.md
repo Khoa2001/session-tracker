@@ -4,7 +4,7 @@
 
 If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and each pane's status line. No background process, no extra window.
 
-![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you.](docs/img/hero.svg)
+![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a numbered, colored status line.](docs/img/hero.svg)
 
 ## What you get
 
@@ -16,9 +16,11 @@ If you run several Claude Code sessions at once, one per task or git worktree, i
 | yellow | working |
 | rose tab | needs you: a permission prompt or a question |
 
-**A status line that shows where each session stands.** Repo and branch, how many lines you have changed, how many commits you are ahead of main, and a context bar that fills smoothly and turns amber, then red, as the window fills.
+**A status line that shows where each session stands.** A colored shape for the model (◆ Opus, ■ Sonnet, ▲ Haiku, ✦ Fable), then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. When a tab has several panes, each gets a numbered badge, and its color also tints that pane's repo and branch so you can tell panes apart at a glance.
 
-![Anatomy of the status line, with the context bar shown at 7, 62 and 91 percent.](docs/img/statusline.svg)
+The line fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
+
+![Anatomy of the status line, the context percent at 7, 62 and 91 percent, and how the line shortens in a narrow pane.](docs/img/statusline.svg)
 
 **A sound when a session finishes.** A soft "ping" so you can keep your eyes on something else.
 
@@ -85,21 +87,24 @@ All optional. Put them in the `env` block of `~/.claude/settings.json` or in you
 - **"Needs you" means a permission prompt or a question.** A turn that ends with a plain question in text looks idle.
 - **Pressing Esc mid-turn** can leave a pane yellow until its next event.
 - **The sound plays every time a session finishes**, even for the pane you are looking at. A hook cannot tell which pane has focus.
-- **If you hide the tab bar** when only one tab is open, the counts and usage are hidden with it.
+- **The tab bar stays visible with a single tab**, because the counts and usage live there. `tracker.setup` turns off `hide_tab_bar_if_only_one_tab`.
+- **The status line finds the pane width from the pane's terminal.** If it cannot, it shows everything and your terminal clips it.
 - **Usage shows `n/a`** when the usage numbers are older than 15 minutes.
 
 ## How it works
 
 ![Claude hooks write one small file per pane. The status line and the WezTerm tab bar read those files.](docs/img/how-it-works.svg)
 
-Claude Code runs a small hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The status line reads its own pane's file. The WezTerm tab bar reads all of them. Nothing runs in the background, and every part is written to fail quietly: if anything goes wrong you see less, never a broken terminal.
+Claude Code runs a small hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The WezTerm tab bar reads all of them. The status line shows live git and the context percent, and only needs its pane number from WezTerm. Nothing runs in the background, and every part is written to fail quietly: if anything goes wrong you see less, never a broken terminal.
 
 <details>
 <summary>Technical details</summary>
 
 - **State file:** `~/.claude/state/panes/<WEZTERM_PANE>.json` with `{"state","repo","branch","cwd","session_id","ts"}`. States are `working`, `needs-you` and `idle`. Files are wiped when WezTerm starts, because pane ids restart.
 - **Hook events:** `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SessionStart`, `SessionEnd`. Subagent events are ignored except permission prompts and notifications.
-- **Status line:** `statusline/statusline-command.sh`. Repo, branch, diff and ahead count come from live git. The ahead count compares with `origin`'s default branch and never runs `git fetch`.
+- **Status line:** `statusline/statusline-command.sh`. Repo, branch, changed-line count and ahead count come from live git. The ahead count compares with `origin`'s default branch and never runs `git fetch`. It does not read the state files.
+- **Pane numbers:** WezTerm writes `~/.claude/state/panes/<WEZTERM_PANE>.pos` with the pane's reading-order number, only while its tab has several panes. The status line turns it into the badge and its color.
+- **Narrow panes:** Claude Code passes no width, so the script walks up its parent processes to the first one with a terminal and reads that terminal's width with `stty`.
 - **Usage numbers:** read from `/tmp/.claude_usage_cache`, written by `~/.claude/fetch-usage.sh`, which is not part of this repo.
 - **Tests:** `sh tests/run.sh` (needs `jq`, `git` and `luajit`).
 - **Contributing:** see [`CLAUDE.md`](CLAUDE.md) for the architecture and the rules that are easy to break, and [`docs/`](docs/) for the original design and plan.
