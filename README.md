@@ -2,9 +2,9 @@
 
 **Know which Claude session needs you, without opening every tab.**
 
-If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and a band above each Claude prompt. No background process, no extra window.
+If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and a band on the hint line under each Claude prompt. No background process, no extra window.
 
-![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a band above the prompt.](docs/img/hero.svg)
+![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a band on the line under the prompt.](docs/img/hero.svg)
 
 ## What you get
 
@@ -16,7 +16,7 @@ If you run several Claude Code sessions at once, one per task or git worktree, i
 | yellow | working |
 | rose tab | needs you: a permission prompt or a question |
 
-**A band above the prompt that shows where each session stands.** It is a Claude Code mod (`mods/kit-band`). The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in its own color, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. The mod also adds the number of tool calls beside the spinner while Claude works, as in `Thinking · 3 tools…`.
+**A band under the prompt that shows where each session stands.** It sits at the right end of Claude Code's hint line. It is a Claude Code mod (`mods/kit-band`). The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in its own color, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. The mod also adds the number of tool calls beside the spinner while Claude works, as in `Thinking · 3 tools…`.
 
 The band fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
 
