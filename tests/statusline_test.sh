@@ -42,7 +42,7 @@ test_shows_repo_branch_diff_ahead() {
   assert_contains "diff" "$out" "±4"
   assert_contains "ahead" "$out" "↑2"
   assert_not_contains "no base name" "$out" "origin/main"
-  assert_contains "model glyph" "$out" "■"
+  assert_contains "model name" "$out" "sonnet"
   assert_contains "ctx" "$out" " 41%"
 }
 
@@ -66,7 +66,7 @@ test_non_git_dir_omits_git_part() {
   d=$(new_tmp)
   out=$(plain "$d"); rc=$?
   assert_eq "exit 0" 0 "$rc"
-  assert_contains "model glyph" "$out" "■"
+  assert_contains "model name" "$out" "sonnet"
   assert_contains "ctx percent" "$out" " 41%"
   assert_not_contains "no ahead" "$out" "↑"
   assert_not_contains "no diff" "$out" "±"
@@ -107,15 +107,16 @@ test_worktree_shows_main_repo_name() {
   assert_not_contains "not dir name" "$out" "wt2"
 }
 
-test_model_glyph_follows_model() {
+test_model_name_follows_model() {
   d=$(new_tmp)
-  for pair in "opus:◆:38;2;236;72;153m" "sonnet:■:38;2;245;166;35m" "haiku:▲:38;2;45;212;191m" "fable:✦:38;2;167;139;250m"; do
-    m=${pair%%:*}; rest=${pair#*:}; g=${rest%%:*}; code=${rest#*:}
+  for m in opus sonnet haiku fable; do
     json=$(printf '{"model":{"id":"claude-%s-5"},"workspace":{"current_dir":"%s"}}' "$m" "$d")
     raw=$(printf '%s' "$json" | SESSION_TRACKER_STATE_DIR=/nonexistent sh "$SL")
-    assert_contains "$m glyph" "$raw" "$code$g"
+    assert_contains "$m name dim" "$raw" "38;2;156;162;175m$m"
   done
-  assert_not_contains "no model name" "$(plain "$d")" "Sonnet"
+  json=$(printf '{"model":{"id":"other-x"},"workspace":{"current_dir":"%s"}}' "$d")
+  raw=$(printf '%s' "$json" | SESSION_TRACKER_STATE_DIR=/nonexistent sh "$SL")
+  assert_contains "unknown model" "$raw" "38;2;156;162;175mclaude"
 }
 
 test_ctx_has_no_bar() {
@@ -141,7 +142,7 @@ test_ctx_shows_percent_only() {
   assert_not_contains "no ctx label" "$out" "ctx"
 }
 
-# Width fitting. Layout is "<glyph> <repo> <branch> | <diff> | <pct>"; the diff goes
+# Width fitting. Layout is "<model>  <repo> <branch> | <diff> | <pct>"; the diff goes
 # first, then the branch is shortened, then dropped, then the repo is capped.
 test_wide_pane_keeps_everything() {
   root=$(new_tmp); make_clone "$root"
@@ -152,7 +153,7 @@ test_wide_pane_keeps_everything() {
 
 test_narrow_pane_drops_diff_first() {
   root=$(new_tmp); make_clone "$root"
-  out=$(COLS=30 plain "$root/api")
+  out=$(COLS=36 plain "$root/api")
   assert_not_contains "no diff" "$out" "±"
   assert_not_contains "no ahead" "$out" "↑"
   assert_contains "branch kept whole" "$out" "feat/auth-token"
@@ -162,16 +163,16 @@ test_narrow_pane_drops_diff_first() {
 test_narrower_pane_shortens_then_drops_branch_then_caps_repo() {
   d=$(new_tmp); git init -q -b feat/statusline-model-glyph-ctx "$d/wezterm-claude-kit"
   git -C "$d/wezterm-claude-kit" commit -q --allow-empty -m i
-  out=$(COLS=60 plain "$d/wezterm-claude-kit")
+  out=$(COLS=66 plain "$d/wezterm-claude-kit")
   assert_contains "full branch when it fits" "$out" "feat/statusline-model-glyph-ctx"
-  out=$(COLS=50 plain "$d/wezterm-claude-kit")
+  out=$(COLS=56 plain "$d/wezterm-claude-kit")
   assert_contains "branch shortened" "$out" "statusline-mo…"
   assert_not_contains "no feat/" "$out" "feat/"
   assert_contains "repo whole" "$out" "wezterm-claude-kit"
-  out=$(COLS=30 plain "$d/wezterm-claude-kit")
+  out=$(COLS=36 plain "$d/wezterm-claude-kit")
   assert_not_contains "no branch" "$out" "statusline"
   assert_contains "repo whole" "$out" "wezterm-claude-kit"
-  out=$(COLS=24 plain "$d/wezterm-claude-kit")
+  out=$(COLS=30 plain "$d/wezterm-claude-kit")
   assert_contains "repo capped" "$out" "wezterm-claud…"
   assert_contains "percent kept" "$out" "41%"
 }
@@ -193,26 +194,26 @@ test_ctx_segment_omitted_without_percentage() {
   assert_not_contains "no percent" "$out" "%"
 }
 
-test_pane_number_badge() {
+test_pane_number() {
   sd=$(new_tmp); printf '3\n' > "$sd/7.pos"
   out=$(SD="$sd" plain /nonexistent)
-  assert_contains "badge before model glyph" "$out" " 3  ■"
+  assert_contains "rounded badge before model name" "$out" "$(printf '\356\202\2663\356\202\264') sonnet  "
   raw=$(SD="$sd" render /nonexistent)
   assert_contains "pane 3 hue on repo" "$raw" '38;2;198;120;221m'
   printf '1\n' > "$sd/7.pos"
   raw=$(SD="$sd" render /nonexistent)
   assert_contains "pane 1 hue differs" "$raw" '38;2;224;108;117m'
   out=$(SD="$sd" NOPANE=1 plain /nonexistent)
-  assert_not_contains "no badge without pane" "$out" " 1 "
+  assert_not_contains "no badge without pane" "$out" "1 sonnet"
   printf 'x\n' > "$sd/7.pos"
   out=$(SD="$sd" plain /nonexistent)
-  assert_not_contains "junk number ignored" "$out" " x "
+  assert_not_contains "junk number ignored" "$out" "x sonnet"
 }
 
-for t in test_pane_number_badge test_shows_repo_branch_diff_ahead test_no_state_dot \
+for t in test_pane_number test_shows_repo_branch_diff_ahead test_no_state_dot \
   test_no_usage_bars test_non_git_dir_omits_git_part test_clean_tree_omits_diff \
   test_detached_head_no_error test_no_origin_no_main_omits_ahead \
-  test_worktree_shows_main_repo_name test_model_glyph_follows_model \
+  test_worktree_shows_main_repo_name test_model_name_follows_model \
   test_ctx_has_no_bar test_ctx_color_follows_thresholds \
   test_ctx_shows_percent_only test_wide_pane_keeps_everything test_narrow_pane_drops_diff_first \
   test_narrower_pane_shortens_then_drops_branch_then_caps_repo test_short_and_unprefixed_names_kept test_ctx_segment_omitted_without_percentage; do
