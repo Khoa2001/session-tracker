@@ -123,12 +123,12 @@ export function register(on) {
         parts.push(sep('s2'), Text({ key: 'ctx', color: levelColor[v.level], children: [v.pct + '%'] }))
       }
       const mine = Box({ key: 'band', flexDirection: 'row', columnGap: 1, children: parts })
+      // A growing spacer pushes the band to the right end. The engine's hint cannot sit under
+      // a Box that sets width, so the row sizes itself.
       return Box({
         flexDirection: 'row',
         columnGap: 2,
-        justifyContent: 'space-between',
-        ...(typeof cols === 'number' ? { width: cols - 2 } : {}),
-        children: theirs ? [theirs, mine] : [mine],
+        children: theirs ? [theirs, Box({ key: 'fill', flexGrow: 1, children: [] }), mine] : [mine],
       })
     } catch (error) {
       return theirs
