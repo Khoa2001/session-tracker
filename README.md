@@ -2,9 +2,9 @@
 
 **Know which Claude session needs you, without opening every tab.**
 
-If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and a band on the hint line under each Claude prompt. No background process, no extra window.
+If you run several Claude Code sessions at once, one per task or git worktree, it is easy to lose track of which one is working, which one finished, and which one is waiting for your answer. This kit puts that information where you already look: the WezTerm tab bar and each pane's status line. No background process, no extra window.
 
-![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a band on the line under the prompt.](docs/img/hero.svg)
+![A WezTerm window with four Claude panes. The tab bar shows a colored dot and repo:branch per tab, and one tab is rose because a session needs you. Each pane has a numbered, colored status line.](docs/img/hero.svg)
 
 ## What you get
 
@@ -16,9 +16,11 @@ If you run several Claude Code sessions at once, one per task or git worktree, i
 | yellow | working |
 | rose tab | needs you: a permission prompt or a question |
 
-**A band under the prompt that shows where each session stands.** It sits at the right end of Claude Code's hint line. It is a Claude Code mod (`mods/kit-band`). The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in its own color, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. The mod also adds the number of tool calls beside the spinner while Claude works, as in `Thinking · 3 tools…`.
+**A status line that shows where each session stands.** The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in dim gray, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. When a tab has several panes, each gets a rounded numbered badge before the model name, and its color also tints that pane's repo and branch so you can tell panes apart at a glance.
 
-The band fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
+The line fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
+
+![Anatomy of the status line, the context percent at 7, 62 and 91 percent, and how the line shortens in a narrow pane.](docs/img/statusline.svg)
 
 **A sound when a session finishes.** A soft "ping" so you can keep your eyes on something else.
 
@@ -26,7 +28,7 @@ The band fits itself to the pane. In a narrow pane it drops the changes and comm
 
 You need macOS, [WezTerm](https://wezterm.org), [Claude Code](https://claude.com/claude-code), `jq` and `git`. It was built and tested on WezTerm `20240203`.
 
-**1. Install the hooks and the band.** This edits `~/.claude/settings.json` and saves a timestamped backup next to it first. It registers the hooks and adds the mod's folder to `env.CLAUDE_CODE_PLUGIN_DIRS`. It also removes this kit's old shell status line, if you had it; a status line of your own is left alone. Running it twice is safe. You need Claude Code `2.1.287` or later for mods.
+**1. Install the hooks and the status line.** This edits `~/.claude/settings.json` and saves a timestamped backup next to it first. Running it twice is safe.
 
 ```sh
 git clone https://github.com/Khoa2001/wezterm-claude-kit.git
@@ -86,23 +88,25 @@ All optional. Put them in the `env` block of `~/.claude/settings.json` or in you
 - **Pressing Esc mid-turn** can leave a pane yellow until its next event.
 - **The sound plays every time a session finishes**, even for the pane you are looking at. A hook cannot tell which pane has focus.
 - **The tab bar stays visible with a single tab**, because the counts and usage live there. `tracker.setup` turns off `hide_tab_bar_if_only_one_tab`.
-- **The band is a mod, and a mod runs with your permissions.** Read `mods/kit-band/hooks/register.js` before you install it, or run `claude plugin validate mods/kit-band` to list what it does. Turn it off with `/plugin`, or with `claude --safe-mode`.
+- **The status line finds the pane width from the pane's terminal.** If it cannot, it shows everything and your terminal clips it.
 - **Usage shows `n/a`** when the usage numbers are older than 15 minutes.
 
 ## How it works
 
-![Claude hooks write one small file per pane. The WezTerm tab bar reads those files.](docs/img/how-it-works.svg)
+![Claude hooks write one small file per pane. The status line and the WezTerm tab bar read those files.](docs/img/how-it-works.svg)
 
-Claude Code runs a small hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The WezTerm tab bar reads all of them. The band is separate: the mod reads live git and the context percent from the session itself. Nothing runs in the background, and every part is written to fail quietly: if anything goes wrong you see less, never a broken terminal.
+Claude Code runs a small hook script on events such as a prompt, a tool call, a permission request and the end of a turn. The script writes one file per WezTerm pane, named after the pane's id. The WezTerm tab bar reads all of them. The status line shows live git and the context percent, and only needs its pane number from WezTerm. Nothing runs in the background, and every part is written to fail quietly: if anything goes wrong you see less, never a broken terminal.
 
 <details>
 <summary>Technical details</summary>
 
 - **State file:** `~/.claude/state/panes/<WEZTERM_PANE>.json` with `{"state","repo","branch","cwd","session_id","ts"}`. States are `working`, `needs-you` and `idle`. Files are wiped when WezTerm starts, because pane ids restart.
 - **Hook events:** `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `PermissionRequest`, `Notification`, `Stop`, `StopFailure`, `SessionStart`, `SessionEnd`. Subagent events are ignored except permission prompts and notifications.
-- **Band mod:** `mods/kit-band`. Repo, branch, changed-line count and ahead count come from live git through `lib/git-info.sh`, refreshed every 5 seconds and after each turn. The ahead count compares with `origin`'s default branch and never runs `git fetch`. It does not read the state files. The fit to the pane uses the width Claude Code gives the band.
+- **Status line:** `statusline/statusline-command.sh`. Repo, branch, changed-line count and ahead count come from live git. The ahead count compares with `origin`'s default branch and never runs `git fetch`. It does not read the state files.
+- **Pane numbers:** WezTerm writes `~/.claude/state/panes/<WEZTERM_PANE>.pos` with the pane's reading-order number, only while its tab has several panes. The status line turns it into the badge and its color.
+- **Narrow panes:** Claude Code passes no width, so the script walks up its parent processes to the first one with a terminal and reads that terminal's width with `stty`.
 - **Usage numbers:** read from `/tmp/.claude_usage_cache`, written by `~/.claude/fetch-usage.sh`, which is not part of this repo.
-- **Tests:** `sh tests/run.sh` (needs `jq`, `git` and `luajit`; it also runs the mod's tests when the `claude` CLI is installed).
+- **Tests:** `sh tests/run.sh` (needs `jq`, `git` and `luajit`).
 - **Contributing:** see [`CLAUDE.md`](CLAUDE.md) for the architecture and the rules that are easy to break, and [`docs/`](docs/) for the original design and plan.
 
 </details>

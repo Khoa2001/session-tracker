@@ -1,6 +1,6 @@
 #!/bin/sh
-# Removes the wezterm-claude-kit hooks and the kit-band mod from
-# <home>/.claude/settings.json. Usage: uninstall.sh [--home DIR]
+# Removes the wezterm-claude-kit hooks from <home>/.claude/settings.json and
+# restores the original status line command. Usage: uninstall.sh [--home DIR]
 set -eu
 
 HOME_DIR=$HOME
@@ -31,11 +31,6 @@ jq '
    else . end)
   | if (.statusLine.command // "" | contains("wezterm-claude-kit/statusline"))
     then .statusLine.command = "bash ~/.claude/statusline-command.sh" | del(.statusLine.refreshInterval) else . end
-  | if .env.CLAUDE_CODE_PLUGIN_DIRS then
-      .env.CLAUDE_CODE_PLUGIN_DIRS |= (split(":") | map(select(. != "" and (endswith("wezterm-claude-kit/mods/kit-band") | not))) | join(":"))
-      | if .env.CLAUDE_CODE_PLUGIN_DIRS == "" then del(.env.CLAUDE_CODE_PLUGIN_DIRS) else . end
-      | if .env == {} then del(.env) else . end
-    else . end
 ' "$settings" > "$tmp"
 
 jq empty "$tmp"

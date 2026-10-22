@@ -76,5 +76,19 @@ eq("right_status no counts", logic.right_status("", "usage n/a"), "usage n/a")
 eq("right_status no usage", logic.right_status("2 working", ""), "2 working")
 eq("right_status neither", logic.right_status("", ""), "")
 
+-- positions
+local pos = logic.positions({
+	{ id = 9, left = 50, top = 20 },
+	{ id = 4, left = 0, top = 0 },
+	{ id = 7, left = 50, top = 0 },
+	{ id = 5, left = 0, top = 20 },
+})
+eq("positions top-left", pos[4], 1)
+eq("positions top-right", pos[7], 2)
+eq("positions bottom-left", pos[5], 3)
+eq("positions bottom-right", pos[9], 4)
+eq("positions left column then right split", logic.positions({ { id = 1, left = 0, top = 0 }, { id = 2, left = 50, top = 0 }, { id = 3, left = 50, top = 20 } })[3], 3)
+eq("positions nil", next(logic.positions(nil)), nil)
+
 print(("%d passed, %d failed"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)
