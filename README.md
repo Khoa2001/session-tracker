@@ -16,7 +16,7 @@ If you run several Claude Code sessions at once, one per task or git worktree, i
 | yellow | working |
 | rose tab | needs you: a permission prompt or a question |
 
-**A status line that shows where each session stands.** A colored shape for the model (◆ Opus, ■ Sonnet, ▲ Haiku, ✦ Fable), then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. When a tab has several panes, each gets a numbered badge, and its color also tints that pane's repo and branch so you can tell panes apart at a glance.
+**A status line that shows where each session stands.** The model's short name (`opus`, `sonnet`, `haiku`, `fable`) in dim gray, then repo and branch, how many lines you have changed (`±N`), how many commits you are ahead of the default branch (`↑N`), and the context percent, which turns amber, then rose, as the window fills. When a tab has several panes, each gets a rounded numbered badge before the model name, and its color also tints that pane's repo and branch so you can tell panes apart at a glance.
 
 The line fits itself to the pane. In a narrow pane it drops the changes and commits first, then shortens the branch, then drops it, then shortens the repo name. The context percent always stays.
 
