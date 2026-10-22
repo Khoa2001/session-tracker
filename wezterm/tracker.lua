@@ -132,9 +132,58 @@ local function right_status_text()
 	return logic.right_status(logic.summary(logic.counts(states)), usage_text())
 end
 
+-- Pane number within its tab, for the status line badge. Written next to the
+-- state files as <pane id>.pos only while the tab has several panes, and only
+-- when the number changed.
+local written_pos = {}
+
+local function write_positions()
+	local dir = state_dir()
+	local seen = {}
+	for _, window in ipairs(wezterm.mux.all_windows()) do
+		for _, tab in ipairs(window:tabs()) do
+			local infos = tab:panes_with_info()
+			local pos = {}
+			if #infos > 1 then
+				local list = {}
+				for _, info in ipairs(infos) do
+					list[#list + 1] = { id = info.pane:pane_id(), left = info.left, top = info.top }
+				end
+				pos = logic.positions(list)
+			end
+			for _, info in ipairs(infos) do
+				local id = info.pane:pane_id()
+				seen[id] = true
+				if written_pos[id] ~= pos[id] then
+					local path = dir .. "/" .. id .. ".pos"
+					if pos[id] then
+						local f = io.open(path, "w")
+						if f then
+							f:write(pos[id], "\n")
+							f:close()
+						end
+					else
+						os.remove(path)
+					end
+					written_pos[id] = pos[id]
+				end
+			end
+		end
+	end
+	for id in pairs(written_pos) do
+		if not seen[id] then
+			os.remove(dir .. "/" .. id .. ".pos")
+			written_pos[id] = nil
+		end
+	end
+end
+
 local function wipe_state_files()
 	pcall(function()
 		for _, path in ipairs(wezterm.glob(state_dir() .. "/*.json")) do
+			os.remove(path)
+		end
+		for _, path in ipairs(wezterm.glob(state_dir() .. "/*.pos")) do
 			os.remove(path)
 		end
 	end)
@@ -147,6 +196,7 @@ function M.setup(config)
 	config.hide_tab_bar_if_only_one_tab = false
 
 	wezterm.on("update-right-status", function(window, _)
+		pcall(write_positions)
 		local ok, text = pcall(right_status_text)
 		if not ok then
 			text = ""

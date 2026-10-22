@@ -5,8 +5,7 @@ TOOLS=$(cd "$HERE/.." && pwd)
 INSTALL="$TOOLS/install.sh"
 UNINSTALL="$TOOLS/uninstall.sh"
 HOOK_CMD="if [ -f '$TOOLS/hooks/track-state.sh' ]; then bash '$TOOLS/hooks/track-state.sh'; fi"
-MOD_DIR="$TOOLS/mods/kit-band"
-OLD_SL_CMD="if [ -f '$TOOLS/statusline/statusline-command.sh' ]; then bash '$TOOLS/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
+SL_CMD="if [ -f '$TOOLS/statusline/statusline-command.sh' ]; then bash '$TOOLS/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
 EVENTS="UserPromptSubmit PreToolUse PostToolUse PostToolUseFailure PermissionRequest Notification Stop StopFailure SessionStart SessionEnd"
 
 # seed_home -> fake HOME with a settings.json shaped like the real one
@@ -60,31 +59,12 @@ test_install_preserves_existing_hooks_and_order() {
   assert_eq "other settings kept" sonnet "$(jq -r .model "$s")"
 }
 
-test_install_loads_mod() {
+test_install_sets_statusline() {
   h=$(seed_home)
   sh "$INSTALL" --home "$h" >/dev/null
-  assert_eq "plugin dirs" "$MOD_DIR" "$(jq -r .env.CLAUDE_CODE_PLUGIN_DIRS "$(settings "$h")")"
-}
-
-test_install_keeps_other_plugin_dirs() {
-  h=$(seed_home)
-  jq '.env.CLAUDE_CODE_PLUGIN_DIRS = "/x/mine:/x/other"' "$(settings "$h")" > "$h/s.json" && mv "$h/s.json" "$(settings "$h")"
-  sh "$INSTALL" --home "$h" >/dev/null
-  sh "$INSTALL" --home "$h" >/dev/null
-  assert_eq "ours appended once" "/x/mine:/x/other:$MOD_DIR" "$(jq -r .env.CLAUDE_CODE_PLUGIN_DIRS "$(settings "$h")")"
-}
-
-test_install_leaves_own_statusline() {
-  h=$(seed_home)
-  sh "$INSTALL" --home "$h" >/dev/null
-  assert_eq "user status line kept" "bash ~/.claude/statusline-command.sh" "$(jq -r .statusLine.command "$(settings "$h")")"
-}
-
-test_install_removes_kit_statusline() {
-  h=$(seed_home)
-  jq --arg c "$OLD_SL_CMD" '.statusLine = {type:"command", command:$c, refreshInterval:3}' "$(settings "$h")" > "$h/s.json" && mv "$h/s.json" "$(settings "$h")"
-  sh "$INSTALL" --home "$h" >/dev/null
-  assert_eq "kit status line gone" null "$(jq -r '.statusLine // null' "$(settings "$h")")"
+  assert_eq "statusLine command" "$SL_CMD" "$(jq -r .statusLine.command "$(settings "$h")")"
+  assert_eq "statusLine refreshInterval" 3 "$(jq -r .statusLine.refreshInterval "$(settings "$h")")"
+  assert_eq "statusLine type" command "$(jq -r .statusLine.type "$(settings "$h")")"
 }
 
 test_install_creates_backup() {
@@ -103,9 +83,9 @@ test_install_output_is_valid_json() {
   assert_eq "valid json" 0 "$?"
 }
 
-test_uninstall_removes_only_ours() {
+test_uninstall_removes_only_ours_and_restores_statusline() {
   h=$(seed_home)
-  norm='walk(if type == "object" then with_entries(select(.value != [] and .value != {})) else . end)'
+  norm='walk(if type == "object" then with_entries(select(.value != [])) else . end)'
   orig=$(jq -S "$norm" "$(settings "$h")")
   sh "$INSTALL" --home "$h" >/dev/null
   sh "$UNINSTALL" --home "$h" >/dev/null
@@ -121,10 +101,9 @@ test_missing_settings_file_fails_cleanly() {
 }
 
 for t in test_install_adds_all_ten_events test_install_is_idempotent \
-  test_install_preserves_existing_hooks_and_order test_install_loads_mod \
-  test_install_keeps_other_plugin_dirs test_install_leaves_own_statusline \
-  test_install_removes_kit_statusline test_install_creates_backup test_install_output_is_valid_json \
-  test_uninstall_removes_only_ours \
+  test_install_preserves_existing_hooks_and_order test_install_sets_statusline \
+  test_install_creates_backup test_install_output_is_valid_json \
+  test_uninstall_removes_only_ours_and_restores_statusline \
   test_missing_settings_file_fails_cleanly; do
   ( "$t" )
 done
