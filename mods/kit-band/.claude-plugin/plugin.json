@@ -1,0 +1,6 @@
+{
+  "name": "kit-band",
+  "version": "0.1.0",
+  "description": "Status band above the prompt and a tool-call count beside the spinner",
+  "author": { "name": "khoamai-culi" }
+}
