@@ -1,7 +1,9 @@
 #!/bin/sh
-# Registers the wezterm-claude-kit hooks and status line in <home>/.claude/settings.json.
+# Registers the wezterm-claude-kit hooks and the kit-band mod in <home>/.claude/settings.json.
 # Usage: install.sh [--home DIR]
 # Takes a timestamped backup first, is idempotent, and keeps existing hooks.
+# The mod loads through CLAUDE_CODE_PLUGIN_DIRS. The kit's old status line is removed;
+# a status line of your own is left alone.
 set -eu
 
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -20,15 +22,13 @@ cp "$settings" "$backup"
 echo "backup: $backup"
 
 # Guarded so a moved or deleted project folder degrades quietly instead of
-# making every Claude hook fail or blanking the status line.
+# making every Claude hook fail.
 hook_cmd="if [ -f '$HERE/hooks/track-state.sh' ]; then bash '$HERE/hooks/track-state.sh'; fi"
-sl_cmd="if [ -f '$HERE/statusline/statusline-command.sh' ]; then bash '$HERE/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
-# refreshInterval re-runs the status line while idle, so pane numbers follow
-# a split or close within seconds.
+mod_dir="$HERE/mods/kit-band"
 tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
-jq --arg hook "$hook_cmd" --arg sl "$sl_cmd" '
+jq --arg hook "$hook_cmd" --arg mod "$mod_dir" '
   def ours: {matcher: "*", hooks: [{type: "command", command: $hook, timeout: 5}]};
   reduce ("UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
           "PermissionRequest", "Notification", "Stop", "StopFailure",
@@ -36,13 +36,15 @@ jq --arg hook "$hook_cmd" --arg sl "$sl_cmd" '
     .hooks[$ev] = (
       (.hooks[$ev] // []) as $cur
       | if any($cur[]?; any(.hooks[]?; .command == $hook)) then $cur else $cur + [ours] end))
-  | .statusLine.type = "command"
-  | .statusLine.command = $sl
-  | .statusLine.refreshInterval = 3
+  | if (.statusLine.command // "" | contains("wezterm-claude-kit/statusline")) then del(.statusLine) else . end
+  | .env.CLAUDE_CODE_PLUGIN_DIRS = (
+      (.env.CLAUDE_CODE_PLUGIN_DIRS // "" | split(":") | map(select(. != ""))) as $dirs
+      | (if ($dirs | index($mod)) == null then $dirs + [$mod] else $dirs end)
+      | join(":"))
 ' "$settings" > "$tmp"
 
 jq empty "$tmp"
 mv "$tmp" "$settings"
 trap - EXIT
 mkdir -p "$HOME_DIR/.claude/state/panes"
-echo "installed hooks and status line in $settings"
+echo "installed hooks and kit-band mod in $settings"

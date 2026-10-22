@@ -1,4 +1,4 @@
-import { layout, bar, modelTheme } from './layout.js'
+import { layout } from './layout.js'
 
 // Prints repo, branch, changed lines, commits ahead as four lines. Sourced from the
 // kit's own git helpers so the band and the status line agree. Never fetches.
@@ -114,7 +114,7 @@ export function register(on) {
         parts.push(sep('s1'), Box({ key: 'diff', flexDirection: 'row', columnGap: 1, children: diff }))
       }
       if (v.pct !== null) {
-        const text = (v.showBar ? bar(v.pct) + ' ' : '') + v.pct + '%'
+        const text = v.pct + '%'
         parts.push(sep('s2'), Text({ key: 'ctx', color: levelColor[v.level], children: [text] }))
       }
       const mine = Box({ key: 'band', flexDirection: 'row', columnGap: 1, children: parts })

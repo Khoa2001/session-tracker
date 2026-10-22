@@ -37,14 +37,8 @@ export function ctxLevel(pct) {
   return 'bad'
 }
 
-export function bar(pct, width = 10) {
-  const filled = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
-  return '▕' + '█'.repeat(filled) + '░'.repeat(width - filled) + '▏'
-}
-
-// Fit to the pane: drop the context bar, then the diff, then shorten the branch, then
-// drop it, then cap the repo, and stop at the first layout that fits. Unknown width
-// shows everything. state: { model, repo, name, branch, changed, ahead, pct }.
+// Fit to the pane: drop the diff, then shorten the branch, then drop it, then cap the
+// repo, and stop at the first layout that fits. Unknown width shows everything. state: { model, repo, name, branch, changed, ahead, pct }.
 export function layout(state, cols) {
   const theme = modelTheme(state.model)
   const out = {
@@ -55,7 +49,6 @@ export function layout(state, cols) {
     changed: state.changed > 0 ? state.changed : 0,
     ahead: state.ahead > 0 ? state.ahead : 0,
     showDiff: state.changed > 0 || state.ahead > 0,
-    showBar: typeof state.pct === 'number',
     pct: typeof state.pct === 'number' ? Math.round(state.pct) : null,
   }
   out.diffText = [state.changed > 0 ? '±' + state.changed : '', state.ahead > 0 ? '↑' + state.ahead : '']
@@ -68,13 +61,12 @@ export function layout(state, cols) {
     if (out.name) w += 2 + out.name.length
     if (out.showBranch && out.branch) w += 1 + out.branch.length
     if (out.showDiff && out.diffText) w += 3 + out.diffText.length
-    if (out.pct !== null) w += 3 + (out.showBar ? 13 : 0) + String(out.pct).length + 1 + (out.showBar ? 1 : 0)
+    if (out.pct !== null) w += 3 + String(out.pct).length + 1
     return w
   }
   if (typeof cols === 'number' && cols > 0) {
     const avail = cols - 2
     const fits = () => width() <= avail
-    if (!fits()) out.showBar = false
     if (!fits()) out.showDiff = false
     if (!fits()) out.branch = cap(shortBranch(state.branch || ''))
     if (!fits()) out.showBranch = false

@@ -16,26 +16,6 @@ function M.worst(states)
 	return best
 end
 
--- Reading-order number (top to bottom, then left to right) for each pane of
--- one tab. `infos` is a list of {id=, left=, top=}; returns {[id] = 1..n}.
-function M.positions(infos)
-	local sorted = {}
-	for i, info in ipairs(infos or {}) do
-		sorted[i] = info
-	end
-	table.sort(sorted, function(a, b)
-		if a.top ~= b.top then
-			return a.top < b.top
-		end
-		return a.left < b.left
-	end)
-	local out = {}
-	for rank, info in ipairs(sorted) do
-		out[info.id] = rank
-	end
-	return out
-end
-
 function M.counts(states)
 	local c = { ["needs-you"] = 0, working = 0, idle = 0 }
 	for _, s in ipairs(states or {}) do
