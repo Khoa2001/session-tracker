@@ -1,0 +1,4 @@
+{
+  "description": "The kit-band hooks module",
+  "modules": ["./register.js"]
+}
