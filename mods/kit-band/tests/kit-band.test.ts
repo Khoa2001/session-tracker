@@ -40,13 +40,13 @@ test('layout drops parts in order when narrow', () => {
   expect(layout({ ...state, branch: '' }, undefined).showBranch).toBe(false)
 })
 
-function stubSession(on: any, git: string) {
+function stubSession(on: any, git: string, drawn: any = { type: 'Text', props: {}, children: ['engine'] }) {
   on('session.cwd', () => ({ value: '/work/wezterm-claude-kit' }))
   on('session.model', () => ({ value: 'claude-opus-4' }))
   on('session.usage', () => ({ value: { context: { tokens: 1, window: 2, percent: 31 }, rateLimits: [], cost: 0 } }))
   on('process.run', () => ({ value: { exitCode: 0, stdout: git, stderr: '' } }))
   on('session.start', () => ({ cwd: '/work' }))
-  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine'] }))
+  on('ui.render', () => drawn)
 }
 
 test('band shows repo, branch, diff and context after a refresh', async ($, on) => {
@@ -83,5 +83,16 @@ test('spinner suffix counts tool calls', async ($, on) => {
   await $.tool.call({ tool: 'Read', file_path: 'README.md' })
   const ui = await $.ui.mount(SPINNER)
   expect(await ui.find({ type: 'Text', text: ' · 2 tools…' })).toBeDefined()
+  await ui.unmount()
+})
+
+test('the band sits beside the engine hint line', async ($, on) => {
+  const clock = mock.clock(on)
+  // What Claude Code hands next() at this site: a reference to its own drawing
+  stubSession(on, 'wezterm-claude-kit\nmain\n0\n0\n', { type: 'engine', ref: 0 })
+  await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
+  await clock.advance(5000)
+  const ui = await $.ui.mount(HINT)
+  expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
   await ui.unmount()
 })
