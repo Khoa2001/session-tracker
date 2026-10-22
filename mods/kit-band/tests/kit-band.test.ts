@@ -1,5 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
-import { bar, cap, ctxLevel, layout, shortBranch } from '../hooks/layout.js'
+import { cap, ctxLevel, layout, shortBranch } from '../hooks/layout.js'
 
 const BAND = {
   plugin: 'kit-band',
@@ -28,16 +28,15 @@ test('pure helpers', () => {
   expect(ctxLevel(59)).toBe('ok')
   expect(ctxLevel(60)).toBe('warn')
   expect(ctxLevel(85)).toBe('bad')
-  expect(bar(30)).toBe('▕███░░░░░░░▏')
 })
 
 test('layout drops parts in order when narrow', () => {
   const state = { model: 'claude-opus-4', name: 'wezterm-claude-kit', branch: 'feat/mod-kit-band', changed: 42, ahead: 3, pct: 31 }
   const wide = layout(state, 100)
-  expect(wide.showBar && wide.showDiff && wide.showBranch).toBe(true)
+  expect(wide.showDiff && wide.showBranch).toBe(true)
   expect(wide.branch).toBe('mod-kit-band')
-  expect(layout(state, 40).showBar).toBe(false)
-  expect(layout(state, 24).showDiff).toBe(false)
+  expect(layout(state, 36).showDiff).toBe(false)
+  expect(layout(state, 20).showBranch).toBe(false)
   expect(layout({ ...state, branch: '' }, undefined).showBranch).toBe(false)
 })
 
@@ -61,7 +60,7 @@ test('band shows repo, branch, diff and context after a refresh', async ($, on) 
   expect(await ui.find({ type: 'Text', text: 'mod-kit-band' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '±42' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: '↑3' })).toBeDefined()
-  expect(await ui.find({ type: 'Text', text: '▕███░░░░░░░▏ 31%' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '31%' })).toBeDefined()
   await ui.unmount()
 })
 
