@@ -1,13 +1,13 @@
 import { expect, mock, test } from 'claude-code/testing'
 import { cap, ctxLevel, layout, shortBranch } from '../hooks/layout.js'
 
-const BAND = {
+const HINT = {
   plugin: 'kit-band',
-  component: 'AbovePrompt',
-  requestId: 'band',
+  component: 'PromptHint',
+  requestId: 'hint',
   surface: 'terminal',
   viewport: { columns: 100, rows: 30 },
-  props: { hasSurvey: false, isWorking: false, maxRows: 3, bodyColumns: 100, scroll: { offset: 0, bodyRows: 1 }, view: {} },
+  props: { isDraft: false, isWorking: false, hint: 'bypass permissions on (shift+tab to cycle)' },
 } as const
 
 const SPINNER = {
@@ -54,7 +54,7 @@ test('band shows repo, branch, diff and context after a refresh', async ($, on) 
   stubSession(on, 'wezterm-claude-kit\nfeat/mod-kit-band\n42\n3\n')
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await clock.advance(5000)
-  const ui = await $.ui.mount(BAND)
+  const ui = await $.ui.mount(HINT)
   expect(await ui.find({ type: 'Text', text: 'opus' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'wezterm-claude-kit' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: 'mod-kit-band' })).toBeDefined()
@@ -69,7 +69,7 @@ test('outside a repo the git segments drop out', async ($, on) => {
   stubSession(on, '\n\n0\n0\n')
   await $.session.start({ surface: 'terminal', isInteractive: true, cwd: '/work' })
   await clock.advance(5000)
-  const ui = await $.ui.mount(BAND)
+  const ui = await $.ui.mount(HINT)
   expect(await ui.find({ type: 'Text', text: 'wezterm-claude-kit' })).toBeDefined()
   expect(await ui.find({ type: 'Text', text: /^±/ })).toBeUndefined()
   expect(await ui.find({ type: 'Text', text: /^↑/ })).toBeUndefined()

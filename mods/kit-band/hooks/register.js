@@ -88,11 +88,17 @@ export function register(on) {
     return next({ ...e, props: { ...e.props, suffix: ' · ' + calls + (calls === 1 ? ' tool' : ' tools') + '…' } })
   })
 
-  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (!snap) return next(e)
+  // The hint line under the prompt: Claude Code's own hint stays on the left, the band
+  // goes to the right. AbovePrompt is not used: the engine draws a [-] beside it and
+  // reserves five columns for it.
+  on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
+    const theirs = await next(e)
+    if (!snap) return theirs
     try {
       const { Box, Text } = $.ui.resolve(e)
-      const v = layout(snap, e.props && e.props.bodyColumns)
+      const cols = e.viewport && e.viewport.columns
+      const hintWidth = String((e.props && e.props.hint) || '').length
+      const v = layout(snap, typeof cols === 'number' ? cols - hintWidth - 4 : undefined)
       const levelColor = { ok: '#7ad99a', warn: '#f0c36a', bad: '#f08aa0' }
       const sep = (key) => Text({ key, color: '#6b7388', children: ['│'] })
       const parts = [
@@ -114,15 +120,18 @@ export function register(on) {
         parts.push(sep('s1'), Box({ key: 'diff', flexDirection: 'row', columnGap: 1, children: diff }))
       }
       if (v.pct !== null) {
-        const text = v.pct + '%'
-        parts.push(sep('s2'), Text({ key: 'ctx', color: levelColor[v.level], children: [text] }))
+        parts.push(sep('s2'), Text({ key: 'ctx', color: levelColor[v.level], children: [v.pct + '%'] }))
       }
       const mine = Box({ key: 'band', flexDirection: 'row', columnGap: 1, children: parts })
-      // Keep what mods after this one draw in the band
-      const theirs = await next(e)
-      return theirs ? Box({ flexDirection: 'column', children: [mine, theirs] }) : mine
+      return Box({
+        flexDirection: 'row',
+        columnGap: 2,
+        justifyContent: 'space-between',
+        ...(typeof cols === 'number' ? { width: cols - 2 } : {}),
+        children: theirs ? [theirs, mine] : [mine],
+      })
     } catch (error) {
-      return next(e)
+      return theirs
     }
   })
 }
