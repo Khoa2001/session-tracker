@@ -13,8 +13,16 @@ local logic = require("logic")
 
 local M = {}
 
--- Same red/yellow/green as the status line dot.
-local COLORS = { ["needs-you"] = "#eb6f92", working = "#f6c177", idle = "#98c379" }
+-- Same red/yellow/green as the status line dot. The usage tones reuse them:
+-- ok is green, warn yellow, hot rose.
+local COLORS = {
+	["needs-you"] = "#eb6f92",
+	working = "#f6c177",
+	idle = "#98c379",
+	ok = "#98c379",
+	warn = "#f6c177",
+	hot = "#eb6f92",
+}
 -- Same palette as the tab bar in ~/.wezterm.lua.
 local BAR_BG, BAR_FG = "#100f17", "#9492a5"
 
@@ -62,18 +70,28 @@ end
 
 -- What a tab should show: `state` is the worst state among its Claude panes
 -- (nil when none), `title` is "repo:branch" of the focused pane (nil when that
--- pane has no state record). Never raises.
+-- pane has no state record), `since` is when the newest needs-you pane started
+-- waiting (nil unless the tab needs you). Never raises.
 function M.tab_view(tab)
 	local ok, view = pcall(function()
 		local states = {}
+		local since
 		for _, pane in ipairs(wezterm.mux.get_tab(tab.tab_id):panes()) do
 			local rec = M.state_of(pane:pane_id())
 			if rec then
 				states[#states + 1] = rec.state
+				if rec.state == "needs-you" and type(rec.since) == "number" and (not since or rec.since > since) then
+					since = rec.since
+				end
 			end
 		end
 		local focused = M.state_of(tab.active_pane.pane_id)
-		return { state = logic.worst(states), title = logic.tab_label(focused, nil) }
+		local state = logic.worst(states)
+		return {
+			state = state,
+			title = logic.tab_label(focused, nil),
+			since = state == "needs-you" and since or nil,
+		}
 	end)
 	if ok then
 		return view
@@ -92,11 +110,18 @@ function M.dot(state, color)
 	return { { Foreground = { Color = c } }, { Text = "● " } }
 end
 
+-- True while a needs-you tab (see tab_view's `since`) should show its brighter
+-- shade. Never raises.
+function M.pulse_on(since)
+	local ok, on = pcall(logic.pulse_on, since, os.time())
+	return ok and on
+end
+
 -- Usage cache mtime is looked up with stat at most every 30 seconds.
 local mtime_cache = { checked = 0, mtime = nil }
 
-local function usage_text()
-	local ok, text = pcall(function()
+local function usage_segments(compact)
+	local ok, segs = pcall(function()
 		local path = usage_cache_path()
 		local now = os.time()
 		if now - mtime_cache.checked >= 30 then
@@ -109,27 +134,35 @@ local function usage_text()
 			lines[#lines + 1] = line
 		end
 		local age = mtime_cache.mtime and (now - mtime_cache.mtime) or nil
-		return logic.usage_text(lines, age, now)
+		return logic.usage_segments(lines, age, now, compact)
 	end)
 	if ok then
-		return text
+		return segs
 	end
-	return "usage n/a"
+	return { { text = "usage n/a" } }
 end
 
-local function right_status_text()
+-- Pieces of the right status: usage first, counts last. compact swaps words
+-- for colored dots and drops the reset countdowns. The second result is true
+-- while a needs-you pane is still inside its pulse window.
+local function right_status_segments(compact)
 	local states = {}
+	local pulsing = false
+	local now = os.time()
 	for _, window in ipairs(wezterm.mux.all_windows()) do
 		for _, tab in ipairs(window:tabs()) do
 			for _, pane in ipairs(tab:panes()) do
 				local rec = M.state_of(pane:pane_id())
 				if rec then
 					states[#states + 1] = rec.state
+					if rec.state == "needs-you" and logic.pulse_active(rec.since, now) then
+						pulsing = true
+					end
 				end
 			end
 		end
 	end
-	return logic.right_status(logic.summary(logic.counts(states)), usage_text())
+	return logic.right_segments(usage_segments(compact), logic.count_segments(logic.counts(states), compact)), pulsing
 end
 
 -- Pane number within its tab, for the status line badge. Written next to the
@@ -189,6 +222,9 @@ local function wipe_state_files()
 	end)
 end
 
+-- Per window id: the second of its last pulse repaint, and which way it flipped.
+local last_redraw, pulse_flip = {}, {}
+
 function M.setup(config)
 	config.status_update_interval = 1000
 	-- The right status carries the session counts, so the bar must stay visible
@@ -197,15 +233,34 @@ function M.setup(config)
 
 	wezterm.on("update-right-status", function(window, _)
 		pcall(write_positions)
-		local ok, text = pcall(right_status_text)
+		-- No width (API change, odd window) counts as wide.
+		local cols_ok, cols = pcall(function()
+			return window:active_tab():get_size().cols
+		end)
+		local compact = cols_ok and type(cols) == "number" and cols < logic.COMPACT_COLS
+		local ok, segs, pulsing = pcall(right_status_segments, compact)
 		if not ok then
-			text = ""
+			segs = {}
 		end
-		window:set_right_status(wezterm.format({
-			{ Background = { Color = BAR_BG } },
-			{ Foreground = { Color = BAR_FG } },
-			{ Text = " " .. text .. " " },
-		}))
+		-- WezTerm re-runs format-tab-title only when the tab bar changes, not on
+		-- the status tick. Flipping an inert option once per second while a tab
+		-- pulses makes it redraw; more often than that loops (each override
+		-- re-fires this handler).
+		local now = os.time()
+		local wid = window:window_id()
+		if pulsing and now ~= last_redraw[wid] then
+			last_redraw[wid] = now
+			pulse_flip[wid] = not pulse_flip[wid]
+			pcall(window.set_config_overrides, window, { status_update_interval = pulse_flip[wid] and 1000 or 1001 })
+		end
+		local items = { { Background = { Color = BAR_BG } }, { Foreground = { Color = BAR_FG } }, { Text = " " } }
+		for _, seg in ipairs(segs) do
+			items[#items + 1] = { Foreground = { Color = COLORS[seg.tone] or BAR_FG } }
+			items[#items + 1] = { Text = seg.text }
+		end
+		items[#items + 1] = { Foreground = { Color = BAR_FG } }
+		items[#items + 1] = { Text = " " }
+		window:set_right_status(wezterm.format(items))
 	end)
 
 	-- Pane ids restart with the mux, so files left by a previous run could paint

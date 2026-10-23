@@ -5,14 +5,37 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/../lib/git-info.sh"
 
-# Chime when a session finishes. Runs detached so a slow player never delays
-# Claude; SESSION_TRACKER_SOUND="" disables it, SESSION_TRACKER_PLAYER swaps afplay.
+# Play a sound file. Runs detached so a slow player never delays Claude; an
+# empty file name disables it, SESSION_TRACKER_PLAYER swaps afplay.
 play_sound() {
-  sound=${SESSION_TRACKER_SOUND-/System/Library/Sounds/Ping.aiff}
+  sound=$1
   [ -n "$sound" ] || return 0
   player=${SESSION_TRACKER_PLAYER:-afplay}
   command -v "$player" >/dev/null 2>&1 || return 0
   ( "$player" "$sound" </dev/null >/dev/null 2>&1 & )
+}
+
+# Desktop notice that this pane needs the user, only while WezTerm is not the
+# frontmost app. Repo and branch come from the user's repo and may hold quotes,
+# so the text goes to osascript as an argument and never into the script text.
+# lsappinfo answers in about 6 ms and needs no Automation permission; osascript
+# with System Events takes about 600 ms and asks for one.
+# SESSION_TRACKER_NOTIFY="" disables it; SESSION_TRACKER_NOTIFIER and
+# SESSION_TRACKER_FRONTMOST (a command printing the app name) are test hooks.
+post_notice() { # repo branch
+  [ -n "${SESSION_TRACKER_NOTIFY-1}" ] || return 0
+  notifier=${SESSION_TRACKER_NOTIFIER:-osascript}
+  command -v "$notifier" >/dev/null 2>&1 || return 0
+  label=$1
+  [ -n "$1" ] && [ -n "$2" ] && label=$1:$2
+  msg="${label:-Claude} needs you"
+  (
+    front=$(sh -c "${SESSION_TRACKER_FRONTMOST:-lsappinfo info -only name \"\$(lsappinfo front)\"}" 2>/dev/null)
+    case $front in *[Ww]ez[Tt]erm*) exit 0 ;; esac
+    "$notifier" -e 'on run argv' \
+      -e 'display notification (item 1 of argv) with title "Claude Code"' \
+      -e 'end run' -- "$msg"
+  ) </dev/null >/dev/null 2>&1 &
 }
 
 main() {
@@ -68,18 +91,37 @@ EOF
     find "$dir" -maxdepth 1 -name '*.json' -mtime +7 -delete 2>/dev/null
   fi
 
+  # Remember when the pane entered its current state: keep the old `since`
+  # while the state is unchanged. A missing or corrupt old file starts fresh.
+  now=$(date +%s)
+  old=$(jq -r '[.state // "", (.since // "" | tostring)] | join("\u001f")' "$file" 2>/dev/null) || old=""
+  IFS=$us read -r old_state old_since <<EOF
+$old
+EOF
+  case $old_since in ''|*[!0-9]*) old_since= ;; esac
+  since=$now
+  [ "$old_state" = "$state" ] && [ -n "$old_since" ] && since=$old_since
+
+  repo=$(git_repo_name "$cwd")
+  branch=$(git_branch "$cwd")
   tmp=$(mktemp "$dir/.tmp.XXXXXX" 2>/dev/null) || return 0
-  if jq -n --arg state "$state" --arg repo "$(git_repo_name "$cwd")" \
-       --arg branch "$(git_branch "$cwd")" --arg cwd "$cwd" --arg sid "$sid" \
-       --arg ts "$(date +%s)" \
-       '{state:$state, repo:$repo, branch:$branch, cwd:$cwd, session_id:$sid, ts:($ts|tonumber)}' \
+  if jq -n --arg state "$state" --arg repo "$repo" \
+       --arg branch "$branch" --arg cwd "$cwd" --arg sid "$sid" \
+       --arg ts "$now" --arg since "$since" \
+       '{state:$state, repo:$repo, branch:$branch, cwd:$cwd, session_id:$sid, ts:($ts|tonumber), since:($since|tonumber)}' \
        > "$tmp" 2>/dev/null; then
     mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
   else
     rm -f "$tmp"
   fi
 
-  [ "$event" = Stop ] && play_sound
+  [ "$event" = Stop ] && play_sound "${SESSION_TRACKER_SOUND-/System/Library/Sounds/Ping.aiff}"
+  # Only the move into needs-you rings: a PermissionRequest and the Notification
+  # for the same prompt must not ring twice.
+  if [ "$state" = needs-you ] && [ "$old_state" != needs-you ]; then
+    play_sound "${SESSION_TRACKER_SOUND_NEEDS-/System/Library/Sounds/Glass.aiff}"
+    post_notice "$repo" "$branch"
+  fi
 }
 
 main
