@@ -117,14 +117,116 @@ end
 
 local MAX_CACHE_AGE = 900
 
--- lines: the 4 lines of the usage cache (5h pct, 7d pct, 5h reset ISO, 7d reset ISO).
-function M.usage_text(lines, age_seconds, now_epoch)
-	if type(lines) ~= "table" or #lines < 4 or not age_seconds or age_seconds > MAX_CACHE_AGE then
-		return "usage n/a"
+M.PULSE_SECONDS = 8
+-- Windows narrower than this many columns get the compact right status.
+M.COMPACT_COLS = 100
+
+-- True while a needs-you tab should blink: the first PULSE_SECONDS after it
+-- entered the state, on every other second. After that it holds steady. A nil
+-- or future `since` (clock change) never blinks.
+function M.pulse_on(since, now)
+	if type(since) ~= "number" or now < since then
+		return false
 	end
-	local five = countdown(lines[3], now_epoch) or "5h"
-	local seven = countdown(lines[4], now_epoch) or "7d"
-	return ("%s %s%% │ %s %s%%"):format(five, lines[1], seven, lines[2])
+	local age = now - since
+	return age < M.PULSE_SECONDS and age % 2 == 0
+end
+
+-- True while the tab bar still needs a per-second repaint for the pulse: the
+-- blink window plus one second, so the last repaint lands on the steady shade.
+function M.pulse_active(since, now)
+	return type(since) == "number" and now >= since and now - since <= M.PULSE_SECONDS
+end
+
+-- How full a usage window is: ok under 70, warn 70-89, hot from 90. nil when
+-- the value is not a number.
+function M.usage_level(pct)
+	local n = tonumber(pct)
+	if not n then
+		return nil
+	end
+	if n >= 90 then
+		return "hot"
+	elseif n >= 70 then
+		return "warn"
+	end
+	return "ok"
+end
+
+local USAGE_NA = { { text = "usage n/a" } }
+
+-- Usage as colorable pieces: { text =, tone = } with tone from usage_level.
+-- lines: the 4 lines of the usage cache (5h pct, 7d pct, 5h reset ISO, 7d reset ISO).
+-- compact drops the reset countdowns and keeps the percents.
+function M.usage_segments(lines, age_seconds, now_epoch, compact)
+	if
+		type(lines) ~= "table"
+		or #lines < 4
+		or not age_seconds
+		or age_seconds > MAX_CACHE_AGE
+		or lines[1] == ""
+		or lines[2] == ""
+	then
+		return USAGE_NA
+	end
+	local out = {}
+	local function window(pct, reset_iso, label)
+		if not compact then
+			out[#out + 1] = { text = (countdown(reset_iso, now_epoch) or label) .. " " }
+		end
+		out[#out + 1] = { text = pct .. "%", tone = M.usage_level(pct) }
+	end
+	window(lines[1], lines[3], "5h")
+	out[#out + 1] = { text = " │ " }
+	window(lines[2], lines[4], "7d")
+	return out
+end
+
+function M.usage_text(lines, age_seconds, now_epoch)
+	local parts = {}
+	for _, seg in ipairs(M.usage_segments(lines, age_seconds, now_epoch, false)) do
+		parts[#parts + 1] = seg.text
+	end
+	return table.concat(parts)
+end
+
+local STATE_ORDER = { "needs-you", "working", "idle" }
+
+-- Counts as colorable pieces. Wide: the plain summary. Compact: one colored
+-- "● N" per state that has sessions.
+function M.count_segments(counts, compact)
+	if not compact then
+		local text = M.summary(counts)
+		if text == "" then
+			return {}
+		end
+		return { { text = text } }
+	end
+	local out = {}
+	for _, state in ipairs(STATE_ORDER) do
+		if counts[state] > 0 then
+			if #out > 0 then
+				out[#out + 1] = { text = "  " }
+			end
+			out[#out + 1] = { text = "● " .. counts[state], tone = state }
+		end
+	end
+	return out
+end
+
+-- Usage pieces, then counts pieces, joined by " │ " when both exist.
+function M.right_segments(usage, counts)
+	local out = {}
+	for _, seg in ipairs(usage) do
+		out[#out + 1] = seg
+	end
+	if #usage > 0 and #counts > 0 then
+		out[#out + 1] = { text = " │ " }
+	end
+	for _, seg in ipairs(counts) do
+		out[#out + 1] = seg
+	end
+	return out
 end
 
 -- Tab title for a pane's state record: "repo:branch", or just "repo" when the

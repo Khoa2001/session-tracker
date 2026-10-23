@@ -90,5 +90,62 @@ eq("positions bottom-right", pos[9], 4)
 eq("positions left column then right split", logic.positions({ { id = 1, left = 0, top = 0 }, { id = 2, left = 50, top = 0 }, { id = 3, left = 50, top = 20 } })[3], 3)
 eq("positions nil", next(logic.positions(nil)), nil)
 
+-- pulse_on
+eq("pulse at start", logic.pulse_on(100, 100), true)
+eq("pulse off beat", logic.pulse_on(100, 101), false)
+eq("pulse on beat", logic.pulse_on(100, 106), true)
+eq("pulse over", logic.pulse_on(100, 108), false)
+eq("pulse after window on even second", logic.pulse_on(100, 110), false)
+eq("pulse nil since", logic.pulse_on(nil, 100), false)
+eq("pulse since in future", logic.pulse_on(200, 100), false)
+
+-- pulse_active: true until one second past the last blink, so the tab gets a final steady repaint
+eq("active at start", logic.pulse_active(100, 100), true)
+eq("active at last second", logic.pulse_active(100, 108), true)
+eq("active past window", logic.pulse_active(100, 109), false)
+eq("active nil since", logic.pulse_active(nil, 100), false)
+eq("active future since", logic.pulse_active(200, 100), false)
+
+-- usage_level
+eq("level 69", logic.usage_level(69), "ok")
+eq("level 70", logic.usage_level(70), "warn")
+eq("level 89", logic.usage_level(89), "warn")
+eq("level 90", logic.usage_level(90), "hot")
+eq("level string", logic.usage_level("92"), "hot")
+eq("level junk", logic.usage_level("abc"), nil)
+eq("level nil", logic.usage_level(nil), nil)
+
+-- usage_segments
+local function joined(segs)
+	local t = {}
+	for _, s in ipairs(segs) do
+		t[#t + 1] = s.text
+	end
+	return table.concat(t)
+end
+local segs = logic.usage_segments(lines, 60, now, false)
+eq("usage segs text", joined(segs), "4h 37m 2% │ 4d 12h 51%")
+eq("usage segs tone 5h", segs[2].tone, "ok")
+eq("usage segs tone 7d", segs[#segs].tone, "ok")
+eq("usage segs hot", logic.usage_segments({ "95", "75", "x", "y" }, 60, now, false)[2].tone, "hot")
+eq("usage segs warn", logic.usage_segments({ "95", "75", "x", "y" }, 60, now, false)[5].tone, "warn")
+eq("usage compact text", joined(logic.usage_segments(lines, 60, now, true)), "2% │ 51%")
+eq("usage compact first", logic.usage_segments(lines, 60, now, true)[1].text, "2%")
+eq("usage stale segs", logic.usage_segments(lines, 901, now, false)[1].text, "usage n/a")
+eq("usage stale tone", logic.usage_segments(lines, 901, now, false)[1].tone, nil)
+eq("usage junk pct no tone", logic.usage_segments({ "x", "y", "2026-10-19T04:37:00+00:00", "2026-10-23T12:00:00+00:00" }, 60, now, false)[2].tone, nil)
+eq("usage blank lines", joined(logic.usage_segments({ "", "", "", "" }, 60, now, false)), "usage n/a")
+
+-- count_segments, right_segments
+local cs = { ["needs-you"] = 1, working = 2, idle = 0 }
+eq("count wide", logic.count_segments(cs, false)[1].text, "1 waiting · 2 working")
+eq("count compact text", joined(logic.count_segments(cs, true)), "● 1  ● 2")
+eq("count compact first", logic.count_segments(cs, true)[1].text, "● 1")
+eq("count compact tone", logic.count_segments(cs, true)[1].tone, "needs-you")
+eq("count empty", #logic.count_segments({ ["needs-you"] = 0, working = 0, idle = 0 }, false), 0)
+eq("right segs both", joined(logic.right_segments({ { text = "u" } }, { { text = "c" } })), "u │ c")
+eq("right segs no usage", joined(logic.right_segments({}, { { text = "c" } })), "c")
+eq("right segs no counts", joined(logic.right_segments({ { text = "u" } }, {})), "u")
+
 print(("%d passed, %d failed"):format(passes, fails))
 os.exit(fails == 0 and 0 or 1)
