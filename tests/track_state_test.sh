@@ -4,7 +4,7 @@ HERE=$(cd "$(dirname "$0")" && pwd)
 HOOK="$HERE/../hooks/track-state.sh"
 
 # Never play real sounds from tests; sound tests opt in.
-export SESSION_TRACKER_SOUND=""
+export SESSION_TRACKER_SOUND="" SESSION_TRACKER_SOUND_NEEDS="" SESSION_TRACKER_NOTIFY=""
 
 # fire EVENT [EXTRA_JSON_FIELDS]
 # Pipes a hook payload into the hook. Uses $SD as state dir, $CWD (default $PWD),
@@ -135,7 +135,7 @@ test_output_is_always_valid_json() {
 test_state_file_has_expected_fields() {
   SD=$(new_tmp)
   fire Stop
-  assert_eq "state file keys" "branch,cwd,repo,session_id,state,ts" "$(jq -r 'keys | join(",")' "$SD/7.json")"
+  assert_eq "state file keys" "branch,cwd,repo,session_id,since,state,ts" "$(jq -r 'keys | join(",")' "$SD/7.json")"
   assert_eq "ts is a number" number "$(jq -r '.ts | type' "$SD/7.json")"
 }
 
@@ -243,6 +243,118 @@ test_slow_player_does_not_block_the_hook() {
   assert_eq "hook returns fast" 1 "$([ "$elapsed" -lt 2 ] && echo 1 || echo 0)"
 }
 
+# fake_notifier DIR -> writes DIR/notifier (logs one arg per line to DIR/notice) and prints its path
+fake_notifier() {
+  printf '#!/bin/sh\nfor a in "$@"; do printf "%%s\\n" "$a"; done >> "%s/notice"\n' "$1" > "$1/notifier"
+  chmod +x "$1/notifier"
+  echo "$1/notifier"
+}
+
+# since -> prints .since of pane 7 in $SD
+since() { jq -r '.since' "$SD/7.json"; }
+
+test_since_kept_when_state_unchanged() {
+  SD=$(new_tmp)
+  fire UserPromptSubmit
+  jq '.since = 100' "$SD/7.json" > "$SD/x" && mv "$SD/x" "$SD/7.json"
+  fire PostToolUse
+  assert_eq "since kept while working" 100 "$(since)"
+}
+
+test_since_reset_when_state_changes() {
+  SD=$(new_tmp)
+  fire UserPromptSubmit
+  jq '.since = 100' "$SD/7.json" > "$SD/x" && mv "$SD/x" "$SD/7.json"
+  fire PermissionRequest
+  assert_eq "since reset on change" 1 "$([ "$(since)" -gt 100 ] && echo 1 || echo 0)"
+}
+
+test_since_without_old_field_is_now() {
+  SD=$(new_tmp)
+  fire UserPromptSubmit
+  jq 'del(.since)' "$SD/7.json" > "$SD/x" && mv "$SD/x" "$SD/7.json"
+  fire PostToolUse
+  assert_eq "since numeric" 1 "$([ "$(since)" -gt 100 ] && echo 1 || echo 0)"
+}
+
+test_since_with_corrupt_old_file() {
+  SD=$(new_tmp)
+  printf '{bad' > "$SD/7.json"
+  fire UserPromptSubmit; rc=$?
+  assert_eq "exit 0" 0 "$rc"
+  assert_eq "since numeric" 1 "$([ "$(since)" -gt 100 ] && echo 1 || echo 0)"
+}
+
+test_needs_you_sound_plays_once_per_transition() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND_NEEDS=/x/need.aiff
+  fire PermissionRequest
+  fire Notification '"notification_type":"permission_prompt"'
+  wait_for "$P/played"; sleep 0.5
+  assert_eq "one needs-you sound" "/x/need.aiff" "$(cat "$P/played" 2>/dev/null)"
+}
+
+test_needs_you_sound_disabled_when_empty() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND_NEEDS=""
+  fire PermissionRequest
+  sleep 0.5
+  assert_file_missing "disabled" "$P/played"
+}
+
+test_default_needs_you_sound_is_glass() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P")
+  unset SESSION_TRACKER_SOUND_NEEDS
+  fire PermissionRequest
+  wait_for "$P/played"
+  assert_eq "default needs-you sound" "/System/Library/Sounds/Glass.aiff" "$(cat "$P/played" 2>/dev/null)"
+}
+
+test_done_sound_unchanged() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_PLAYER=$(fake_player "$P") SESSION_TRACKER_SOUND=/x/done.aiff SESSION_TRACKER_SOUND_NEEDS=/x/need.aiff
+  fire Stop
+  wait_for "$P/played"; sleep 0.3
+  assert_eq "Stop still plays done" "/x/done.aiff" "$(cat "$P/played" 2>/dev/null)"
+}
+
+test_notice_posted_when_wezterm_not_frontmost() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_NOTIFY=1 SESSION_TRACKER_NOTIFIER=$(fake_notifier "$P") SESSION_TRACKER_FRONTMOST="echo Safari"
+  fire PermissionRequest
+  wait_for "$P/notice"
+  assert_contains "notice says needs you" "$(cat "$P/notice" 2>/dev/null)" "needs you"
+}
+
+test_notice_skipped_when_wezterm_frontmost() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_NOTIFY=1 SESSION_TRACKER_NOTIFIER=$(fake_notifier "$P") SESSION_TRACKER_FRONTMOST='echo "WezTerm"'
+  fire PermissionRequest
+  sleep 0.5
+  assert_file_missing "no notice when WezTerm is frontmost" "$P/notice"
+}
+
+test_notice_disabled_when_empty() {
+  SD=$(new_tmp); P=$(new_tmp)
+  export SESSION_TRACKER_NOTIFY="" SESSION_TRACKER_NOTIFIER=$(fake_notifier "$P") SESSION_TRACKER_FRONTMOST="echo Safari"
+  fire PermissionRequest
+  sleep 0.5
+  assert_file_missing "disabled" "$P/notice"
+}
+
+test_notice_survives_hostile_branch_name() {
+  SD=$(new_tmp); P=$(new_tmp); R=$(new_tmp)
+  git -C "$R" init -q
+  git -C "$R" checkout -q -b 'x"$(touch${IFS}pwned)`touch${IFS}pwned2`'
+  export SESSION_TRACKER_NOTIFY=1 SESSION_TRACKER_NOTIFIER=$(fake_notifier "$P") SESSION_TRACKER_FRONTMOST="echo Safari"
+  CWD=$R fire PermissionRequest
+  wait_for "$P/notice"
+  assert_contains "branch text intact" "$(cat "$P/notice" 2>/dev/null)" 'x"$(touch${IFS}pwned)`touch${IFS}pwned2`'
+  assert_file_missing "nothing executed" "$R/pwned"
+  assert_file_missing "backticks not executed" "$R/pwned2"
+}
+
 for t in test_maps_working_events test_maps_needs_you_events \
   test_notification_other_type_keeps_state test_stop_and_sessionstart_are_idle \
   test_sessionend_removes_file test_subagent_event_ignored_after_stop \
@@ -255,7 +367,13 @@ for t in test_maps_working_events test_maps_needs_you_events \
   test_subagent_notification_needs_you test_question_tools_are_needs_you \
   test_stop_plays_the_configured_sound test_default_sound_is_ping \
   test_only_stop_plays_a_sound test_empty_sound_disables_it \
-  test_missing_player_is_harmless test_slow_player_does_not_block_the_hook; do
+  test_missing_player_is_harmless test_slow_player_does_not_block_the_hook \
+  test_since_kept_when_state_unchanged test_since_reset_when_state_changes \
+  test_since_without_old_field_is_now test_since_with_corrupt_old_file \
+  test_needs_you_sound_plays_once_per_transition test_needs_you_sound_disabled_when_empty \
+  test_default_needs_you_sound_is_glass test_done_sound_unchanged \
+  test_notice_posted_when_wezterm_not_frontmost test_notice_skipped_when_wezterm_frontmost \
+  test_notice_disabled_when_empty test_notice_survives_hostile_branch_name; do
   ( "$t" )
 done
 finish
