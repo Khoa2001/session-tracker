@@ -22,13 +22,14 @@ echo "backup: $backup"
 # Guarded so a moved or deleted project folder degrades quietly instead of
 # making every Claude hook fail or blanking the status line.
 hook_cmd="if [ -f '$HERE/hooks/track-state.sh' ]; then bash '$HERE/hooks/track-state.sh'; fi"
+uc_cmd="if [ -f '$HERE/hooks/ultracave-check.sh' ]; then sh '$HERE/hooks/ultracave-check.sh'; fi"
 sl_cmd="if [ -f '$HERE/statusline/statusline-command.sh' ]; then bash '$HERE/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
 # refreshInterval re-runs the status line while idle, so pane numbers follow
 # a split or close within seconds.
 tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
-jq --arg hook "$hook_cmd" --arg sl "$sl_cmd" '
+jq --arg hook "$hook_cmd" --arg uc "$uc_cmd" --arg sl "$sl_cmd" '
   def ours: {matcher: "*", hooks: [{type: "command", command: $hook, timeout: 5}]};
   reduce ("UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
           "PermissionRequest", "Notification", "Stop", "StopFailure",
@@ -36,6 +37,9 @@ jq --arg hook "$hook_cmd" --arg sl "$sl_cmd" '
     .hooks[$ev] = (
       (.hooks[$ev] // []) as $cur
       | if any($cur[]?; any(.hooks[]?; .command == $hook)) then $cur else $cur + [ours] end))
+  | (.hooks.Stop // []) as $stop
+  | .hooks.Stop = (if any($stop[]?; any(.hooks[]?; .command == $uc)) then $stop
+                   else $stop + [{hooks: [{type: "command", command: $uc, timeout: 5}]}] end)
   | .statusLine.type = "command"
   | .statusLine.command = $sl
   | .statusLine.refreshInterval = 3

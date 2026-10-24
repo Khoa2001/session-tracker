@@ -21,7 +21,7 @@ tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
 jq '
-  def ours: any(.hooks[]?; (.command // "") | contains("wezterm-claude-kit/hooks/track-state.sh"));
+  def ours: any(.hooks[]?; (.command // "") | (contains("wezterm-claude-kit/hooks/track-state.sh") or contains("wezterm-claude-kit/hooks/ultracave-check.sh")));
   (if .hooks then
      .hooks |= with_entries(
        if (.value | type) == "array" and any(.value[]?; ours)
