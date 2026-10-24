@@ -6,6 +6,7 @@ INSTALL="$TOOLS/install.sh"
 UNINSTALL="$TOOLS/uninstall.sh"
 HOOK_CMD="if [ -f '$TOOLS/hooks/track-state.sh' ]; then bash '$TOOLS/hooks/track-state.sh'; fi"
 SL_CMD="if [ -f '$TOOLS/statusline/statusline-command.sh' ]; then bash '$TOOLS/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
+UC_CMD="if [ -f '$TOOLS/hooks/ultracave-check.sh' ]; then sh '$TOOLS/hooks/ultracave-check.sh'; fi"
 EVENTS="UserPromptSubmit PreToolUse PostToolUse PostToolUseFailure PermissionRequest Notification Stop StopFailure SessionStart SessionEnd"
 
 # seed_home -> fake HOME with a settings.json shaped like the real one
@@ -39,6 +40,14 @@ test_install_adds_all_ten_events() {
   for ev in $EVENTS; do
     assert_eq "ours once in $ev" 1 "$(ours_count "$h" "$ev")"
   done
+}
+
+test_install_adds_ultracave_stop_hook_once() {
+  h=$(seed_home)
+  sh "$INSTALL" --home "$h" >/dev/null
+  sh "$INSTALL" --home "$h" >/dev/null
+  n=$(jq --arg c "$UC_CMD" '[.hooks.Stop[] | .hooks[]? | select(.command == $c)] | length' "$(settings "$h")")
+  assert_eq "ultracave once in Stop" 1 "$n"
 }
 
 test_install_is_idempotent() {
@@ -100,7 +109,7 @@ test_missing_settings_file_fails_cleanly() {
   assert_file_missing "no settings created" "$h/.claude/settings.json"
 }
 
-for t in test_install_adds_all_ten_events test_install_is_idempotent \
+for t in test_install_adds_all_ten_events test_install_adds_ultracave_stop_hook_once test_install_is_idempotent \
   test_install_preserves_existing_hooks_and_order test_install_sets_statusline \
   test_install_creates_backup test_install_output_is_valid_json \
   test_uninstall_removes_only_ours_and_restores_statusline \
