@@ -6,18 +6,21 @@ input=$(cat)
 
 [ "$(printf '%s' "$input" | jq -r '.stop_hook_active // false' 2>/dev/null)" = "true" ] && exit 0
 
-transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
-[ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
-
-# Last assistant text block of the transcript.
-text=$(jq -rs '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text] | last // empty' "$transcript" 2>/dev/null)
+# The Stop payload carries the reply itself. The transcript can lag behind at
+# Stop time and still hold the previous reply, so it is only a fallback.
+text=$(printf '%s' "$input" | jq -r '.last_assistant_message // empty' 2>/dev/null)
+if [ -z "$text" ]; then
+  transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty' 2>/dev/null)
+  [ -n "$transcript" ] && [ -f "$transcript" ] || exit 0
+  text=$(jq -rs '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "text") | .text] | last // empty' "$transcript" 2>/dev/null)
+fi
 [ -n "$text" ] || exit 0
 
 # Drop fenced code, inline code and URLs: those stay normal.
 prose=$(printf '%s\n' "$text" | awk '/^```/{f=!f; next} !f' | sed -E 's/`[^`]*`//g; s#https?://[^ ]+##g' | tr 'A-Z' 'a-z')
 
 words=$(printf '%s' "$prose" | wc -w | tr -d ' ')
-[ "${words:-0}" -ge 12 ] || exit 0
+[ "${words:-0}" -ge 30 ] || exit 0
 
 # Plain prose is allowed for questions and security or irreversible warnings.
 case "$prose" in
