@@ -23,13 +23,14 @@ echo "backup: $backup"
 # making every Claude hook fail or blanking the status line.
 hook_cmd="if [ -f '$HERE/hooks/track-state.sh' ]; then bash '$HERE/hooks/track-state.sh'; fi"
 uc_cmd="if [ -f '$HERE/hooks/ultracave-check.sh' ]; then sh '$HERE/hooks/ultracave-check.sh'; fi"
+ur_cmd="if [ -f '$HERE/hooks/ultracave-remind.sh' ]; then sh '$HERE/hooks/ultracave-remind.sh'; fi"
 sl_cmd="if [ -f '$HERE/statusline/statusline-command.sh' ]; then bash '$HERE/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
 # refreshInterval re-runs the status line while idle, so pane numbers follow
 # a split or close within seconds.
 tmp=$(mktemp "$settings.tmp.XXXXXX")
 trap 'rm -f "$tmp"' EXIT
 
-jq --arg hook "$hook_cmd" --arg uc "$uc_cmd" --arg sl "$sl_cmd" '
+jq --arg hook "$hook_cmd" --arg uc "$uc_cmd" --arg ur "$ur_cmd" --arg sl "$sl_cmd" '
   def ours: {matcher: "*", hooks: [{type: "command", command: $hook, timeout: 5}]};
   reduce ("UserPromptSubmit", "PreToolUse", "PostToolUse", "PostToolUseFailure",
           "PermissionRequest", "Notification", "Stop", "StopFailure",
@@ -40,6 +41,9 @@ jq --arg hook "$hook_cmd" --arg uc "$uc_cmd" --arg sl "$sl_cmd" '
   | (.hooks.Stop // []) as $stop
   | .hooks.Stop = (if any($stop[]?; any(.hooks[]?; .command == $uc)) then $stop
                    else $stop + [{hooks: [{type: "command", command: $uc, timeout: 5}]}] end)
+  | (.hooks.UserPromptSubmit // []) as $ups
+  | .hooks.UserPromptSubmit = (if any($ups[]?; any(.hooks[]?; .command == $ur)) then $ups
+                               else $ups + [{hooks: [{type: "command", command: $ur, timeout: 5}]}] end)
   | .statusLine.type = "command"
   | .statusLine.command = $sl
   | .statusLine.refreshInterval = 3
