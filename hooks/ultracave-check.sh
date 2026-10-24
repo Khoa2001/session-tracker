@@ -1,6 +1,8 @@
 #!/bin/sh
-# Stop hook: block a reply that is not ultracave so Claude rewrites it terse.
-# Heuristic only (filler phrases + article density). Must always exit 0.
+# Stop hook: flag a reply that is not ultracave. Never blocks (a block prints
+# a "Stop hook error" row); hooks/ultracave-remind.sh reads the flag on the
+# next prompt. Heuristic only (filler phrases + article density). Must always
+# exit 0 and print nothing.
 
 input=$(cat)
 
@@ -33,7 +35,10 @@ articles=$(printf '%s' "$prose" | tr -c "a-z'" '\n' | grep -cxE 'a|an|the')
 
 # Ultracave drops articles: flag any filler, or articles above 4% of words.
 if [ "$filler" -ge 1 ] || [ $((articles * 100)) -gt $((words * 4)) ]; then
-  jq -n --arg r "Reply not ultracave (filler=$filler, articles=$articles/$words words). Resend same content: drop articles, filler, pleasantries, hedging; fragments; keep code and technical terms exact." \
-    '{decision: "block", reason: $r}'
+  sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
+  [ -n "$sid" ] || exit 0
+  dir=${SESSION_TRACKER_ULTRACAVE_DIR:-$HOME/.claude/state/ultracave}
+  mkdir -p "$dir" 2>/dev/null || exit 0
+  printf 'filler=%s, articles=%s/%s words' "$filler" "$articles" "$words" > "$dir/$sid" 2>/dev/null
 fi
 exit 0

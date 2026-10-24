@@ -2,20 +2,46 @@
 HERE=$(cd "$(dirname "$0")" && pwd)
 . "$HERE/lib.sh"
 HOOK="$HERE/../hooks/ultracave-check.sh"
+REMIND="$HERE/../hooks/ultracave-remind.sh"
+export SESSION_TRACKER_ULTRACAVE_DIR=$(new_tmp)
 
-# run_hook TEXT [ACTIVE] -> hook stdout; builds a one-message transcript
+# run_hook TEXT [ACTIVE] -> hook stdout; builds a one-message transcript.
+# Session s1 is flagged when the hook judges TEXT not ultracave.
 run_hook() {
   d=$(new_tmp)
   jq -nc --arg t "$1" '{type:"assistant",message:{content:[{type:"text",text:$t}]}}' > "$d/t.jsonl"
-  printf '{"transcript_path":"%s/t.jsonl","stop_hook_active":%s}' "$d" "${2:-false}" | sh "$HOOK"
+  printf '{"session_id":"s1","transcript_path":"%s/t.jsonl","stop_hook_active":%s}' "$d" "${2:-false}" | sh "$HOOK"
 }
 
-test_blocks_filler_reply() {
+flag() { echo "$SESSION_TRACKER_ULTRACAVE_DIR/s1"; }
+reset() { rm -f "$(flag)"; }
+
+test_flags_filler_reply_without_blocking() {
+  reset
   out=$(run_hook "Sure! I'd be happy to help you with that. The issue is that the token expiry check in the auth middleware uses the wrong operator, so the request is rejected before the handler ever runs.")
-  assert_eq "decision" block "$(printf '%s' "$out" | jq -r .decision)"
+  assert_eq "prints nothing" "" "$out"
+  assert_file_exists "flag written" "$(flag)"
+  assert_contains "flag has counts" "$(cat "$(flag)")" "filler="
+}
+
+test_remind_injects_once_and_clears_flag() {
+  reset
+  run_hook "Sure! I'd be happy to help you with that. The issue is that the token expiry check in the auth middleware uses the wrong operator, so the request is rejected before the handler ever runs." >/dev/null
+  out=$(printf '{"session_id":"s1"}' | sh "$REMIND")
+  assert_contains "context injected" "$(printf '%s' "$out" | jq -r .hookSpecificOutput.additionalContext)" "broke ultracave"
+  assert_file_missing "flag cleared" "$(flag)"
+  assert_eq "second prompt silent" "" "$(printf '{"session_id":"s1"}' | sh "$REMIND")"
+}
+
+test_remind_silent_without_flag_or_session() {
+  reset
+  assert_eq "no flag" "" "$(printf '{"session_id":"s1"}' | sh "$REMIND")"
+  assert_eq "no session" "" "$(printf '{}' | sh "$REMIND")"
+  printf 'garbage' | sh "$REMIND"; assert_eq "exit 0" 0 "$?"
 }
 
 test_passes_terse_reply() {
+  reset
   assert_eq "no output" "" "$(run_hook "Bug in auth middleware. Token expiry check use < not <=. Fix: change operator, rerun tests.")"
 }
 
@@ -49,7 +75,7 @@ test_exits_zero_on_bad_input() {
   printf '{"transcript_path":"/nope"}' | sh "$HOOK"; assert_eq "exit 0 missing file" 0 "$?"
 }
 
-for t in test_blocks_filler_reply test_passes_terse_reply test_skips_when_stop_hook_active \
+for t in test_flags_filler_reply_without_blocking test_remind_injects_once_and_clears_flag test_remind_silent_without_flag_or_session test_passes_terse_reply test_skips_when_stop_hook_active \
   test_skips_questions_and_short_replies test_ignores_code_blocks test_prefers_last_assistant_message_over_stale_transcript test_exits_zero_on_bad_input; do
   ( "$t" )
 done

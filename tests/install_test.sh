@@ -7,6 +7,7 @@ UNINSTALL="$TOOLS/uninstall.sh"
 HOOK_CMD="if [ -f '$TOOLS/hooks/track-state.sh' ]; then bash '$TOOLS/hooks/track-state.sh'; fi"
 SL_CMD="if [ -f '$TOOLS/statusline/statusline-command.sh' ]; then bash '$TOOLS/statusline/statusline-command.sh'; else bash ~/.claude/statusline-command.sh; fi"
 UC_CMD="if [ -f '$TOOLS/hooks/ultracave-check.sh' ]; then sh '$TOOLS/hooks/ultracave-check.sh'; fi"
+UR_CMD="if [ -f '$TOOLS/hooks/ultracave-remind.sh' ]; then sh '$TOOLS/hooks/ultracave-remind.sh'; fi"
 EVENTS="UserPromptSubmit PreToolUse PostToolUse PostToolUseFailure PermissionRequest Notification Stop StopFailure SessionStart SessionEnd"
 
 # seed_home -> fake HOME with a settings.json shaped like the real one
@@ -48,6 +49,8 @@ test_install_adds_ultracave_stop_hook_once() {
   sh "$INSTALL" --home "$h" >/dev/null
   n=$(jq --arg c "$UC_CMD" '[.hooks.Stop[] | .hooks[]? | select(.command == $c)] | length' "$(settings "$h")")
   assert_eq "ultracave once in Stop" 1 "$n"
+  n=$(jq --arg c "$UR_CMD" '[.hooks.UserPromptSubmit[] | .hooks[]? | select(.command == $c)] | length' "$(settings "$h")")
+  assert_eq "remind once in UserPromptSubmit" 1 "$n"
 }
 
 test_install_is_idempotent() {
